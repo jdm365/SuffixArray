@@ -1,2 +1,2 @@
-# SuffixArray
-Suffix Array implemented in c/c++ exposed to python through cython.
+# BM25
+BM25 algorithm written in c++ and exposed through cython.
