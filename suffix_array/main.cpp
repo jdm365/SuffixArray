@@ -1,10 +1,11 @@
+#include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <algorithm>
 #include <chrono>
-
+#include <omp.h>
 
 static void print_suffix_array(int* suffix_array, int n) {
 	for (int i = 0; i < n; ++i) {
@@ -12,6 +13,166 @@ static void print_suffix_array(int* suffix_array, int n) {
 	}
 	printf("\n");
 }
+
+static void print_suffix_array_chars(const char* str, int* suffix_array, int n) {
+	for (int i = 0; i < n; ++i) {
+		printf("%u ", (uint8_t)str[suffix_array[i]]);
+	}
+	printf("\n");
+}
+
+void two_char_radix_sort(
+		const char* str,
+		uint32_t* bucket_starts,
+		int* suffix_array,
+		int n
+) {
+	constexpr int TWO_CHAR_BUCKETS = 65536;
+
+	uint32_t buckets[TWO_CHAR_BUCKETS] = {0};
+
+	// Do initial radix sort up to 2 char length (bucket sort)
+	for (int i = 0; i < n - 1; ++i) {
+		uint16_t two_char = (uint16_t)str[i] * 256 + (uint16_t)str[i + 1];
+		++buckets[two_char];
+	}
+
+	uint32_t offset = 0;
+
+	for (size_t i = 0; i < TWO_CHAR_BUCKETS; ++i) {
+		bucket_starts[i] = offset;
+		offset += buckets[i];
+	}
+
+	for (int i = 0; i < n - 1; ++i) {
+		uint16_t two_char = (uint16_t)str[i] * 256 + (uint16_t)str[i + 1];
+		int new_idx = bucket_starts[two_char];
+
+		suffix_array[new_idx] = i;
+		++bucket_starts[two_char];
+	}
+}
+
+void three_char_radix_sort(
+		const char* str,
+		uint32_t** bucket_starts,
+		int* suffix_array,
+		int n
+) {
+	constexpr uint64_t THREE_CHAR_BUCKETS = 256 * 256 * 256;
+
+	uint32_t* buckets = (uint32_t*)malloc(THREE_CHAR_BUCKETS * sizeof(uint32_t));
+	memset(buckets, 0, THREE_CHAR_BUCKETS * sizeof(uint32_t));
+
+	// Do initial radix sort up to 2 char length (bucket sort)
+	for (int i = 0; i < n - 3; ++i) {
+		uint32_t three_char = (uint32_t)(uint8_t)str[i] * 65536 + 
+							  (uint32_t)(uint8_t)str[i + 1] * 256 + 
+							  (uint32_t)(uint8_t)str[i + 2];
+		++buckets[three_char];
+	}
+
+	uint32_t offset = 0;
+	for (uint64_t i = 0; i < THREE_CHAR_BUCKETS; ++i) {
+		(*bucket_starts)[i] = offset;
+		offset += buckets[i];
+	}
+
+	for (int i = 0; i < n - 3; ++i) {
+		uint32_t three_char = (uint32_t)(uint8_t)str[i] * 65536 + 
+							  (uint32_t)(uint8_t)str[i + 1] * 256 + 
+							  (uint32_t)(uint8_t)str[i + 2];
+		int new_idx = (*bucket_starts)[three_char];
+
+		suffix_array[new_idx] = i;
+		++(*bucket_starts)[three_char];
+	}
+
+	free(buckets);
+}
+
+void recursive_radix_sort(
+		const char* str,
+		int* suffix_array,
+		int* temp_suffix_array,
+		int string_length,
+		int n,
+		int max_depth = 4,
+		int current_depth = 0
+) {
+	// Base case
+	if (current_depth == max_depth) {
+		return;
+	}
+
+	if (n < 32) {
+		// Do insertion sort
+		for (int i = 1; i < n; ++i) {
+			int j = i;
+			while (j > 0 && strncmp(str + suffix_array[j], str + suffix_array[j - 1], max_depth) < 0) {
+				std::swap(suffix_array[j], suffix_array[j - 1]);
+				--j;
+			}
+		}
+		return;
+	}
+
+	// Do radix sort of first char. Then in each bucket, skip
+	// current_depth chars and do radix sort of next char.
+	constexpr int NUM_BUCKETS 	   = 256;
+	int buckets[NUM_BUCKETS] 	   = {0};
+	int bucket_starts[NUM_BUCKETS] = {0};
+
+	for (int i = 0; i < n; ++i) {
+		int char_idx = suffix_array[i] + current_depth;
+		// if (char_idx >= string_length) {
+			// continue;
+		// }
+		uint8_t char_val = (uint8_t)str[char_idx];
+		++buckets[char_val];
+	}
+
+	int offset = 0;
+	for (size_t i = 0; i < NUM_BUCKETS; ++i) {
+		bucket_starts[i] = offset;
+		offset += buckets[i];
+	}
+
+	// temp
+	// int* temp_suffix_array = (int*)malloc(n * sizeof(int));
+	memcpy(temp_suffix_array, suffix_array, n * sizeof(int));
+
+	for (int i = 0; i < n; ++i) {
+		int char_idx = suffix_array[i] + current_depth;
+		uint8_t char_val = (uint8_t)str[char_idx];
+		temp_suffix_array[bucket_starts[char_val]] = suffix_array[i];
+		++bucket_starts[char_val];
+	}
+
+	memcpy(suffix_array, temp_suffix_array, n * sizeof(int));
+	// free(temp_suffix_array);
+
+	// Recursively sort each bucket
+	for (int i = 0; i < NUM_BUCKETS - 1; ++i) {
+		int bucket_start = bucket_starts[i];
+		int bucket_end   = bucket_starts[i + 1];
+		if (bucket_end - bucket_start <= 1) {
+			continue;
+		}
+		// printf("Bucket start: %d, end: %d\n", bucket_start, bucket_end);
+
+		recursive_radix_sort(
+			str,
+			suffix_array + bucket_start,
+			temp_suffix_array + bucket_start,
+			string_length,
+			bucket_end - bucket_start,
+			max_depth,
+			current_depth + 1
+		);
+	}
+}
+
 
 void read_text_into_buffer(
 		const char* filename,
@@ -65,27 +226,49 @@ void construct_truncated_suffix_array(
 	const char* str,
 	int* suffix_array,
 	int n,
-	int max_suffix_length = 100
+	int max_suffix_length = -1
 ) {
-	max_suffix_length = std::min(max_suffix_length, n);
+	if (max_suffix_length == -1) {
+		max_suffix_length = n;
+	}
+	else {
+		max_suffix_length = std::min(max_suffix_length, n);
+	}
 
 	// Construct simple suffix array from str
 	for (int i = 0; i < n; ++i) {
 		suffix_array[i] = i;
 	}
 
-	// Sort suffix array only up to max_suffix_length
-	std::sort(
-		suffix_array,
-		suffix_array + n,
-		[&](int a, int b) {
-			return strncmp(str + a, str + b, max_suffix_length) < 0;
-		}
-	);
+	constexpr uint32_t TWO_CHAR_BUCKETS = 256 * 256;
 
-	for (int i = 0; i < n; ++i) {
-		printf("%d ", suffix_array[i]);
+	uint32_t bucket_starts[TWO_CHAR_BUCKETS] = {0};
+	two_char_radix_sort(str, bucket_starts, suffix_array, n - 1);
+
+	uint32_t max_bucket_size = 0;
+	for (uint32_t i = 0; i < TWO_CHAR_BUCKETS - 1; ++i) {
+		max_bucket_size = std::max(max_bucket_size, bucket_starts[i + 1] - bucket_starts[i]);
 	}
+
+	int* temp_suffix_array = (int*)malloc(n * sizeof(int));
+
+	#pragma omp parallel for schedule(static)
+	for (uint32_t i = 0; i < TWO_CHAR_BUCKETS - 1; ++i) {
+		if (bucket_starts[i + 1] - bucket_starts[i] <= 1) {
+			continue;
+		}
+		recursive_radix_sort(
+				str, 
+				suffix_array + bucket_starts[i], 
+				temp_suffix_array + bucket_starts[i],
+				n - 1, 
+				bucket_starts[i + 1] - bucket_starts[i],
+				max_suffix_length, 
+				2
+				);
+	}
+
+	free(temp_suffix_array);
 }
 
 // Forward declarations
@@ -771,40 +954,49 @@ int get_substring_positions(
     }
 
     // Adjusted to correctly iterate through start to end
+	/*
     for (int i = start; i <= end; ++i) {
-        // printf("Substring found at position %d: %s\n", suffix_array[i], str + suffix_array[i]);
         printf("Substring found at position %d: %s\n", suffix_array[i], substring);
     }
+	*/
+	printf("Found %d matches\n", end - start + 1);
 
     return end - start + 1;
 }
 
 
 int main() {
-	const char* filename = "/home/jdm365/SearchApp/basic_search/data/companies_sorted_100k.csv";
-	// const char* filename = "/home/jdm365/SearchApp/basic_search/data/companies_sorted.csv";
+	const char* filename = "/home/jdm365/SearchApp/data/companies_sorted.csv";
+	// const char* filename = "/home/jdm365/SearchApp/data/companies_sorted_100M.csv";
 
-	/*
 	char* buffer = nullptr;
 	uint64_t buffer_size;
 	read_text_into_buffer(filename, &buffer, &buffer_size);
-	*/
+	/*
 	// char* buffer = (char*)"I work at netflix btw.";
 	char* buffer = (char*)"cabbage";
 	int buffer_size = strlen(buffer);
+	*/
 
 	int n = buffer_size + 1;
 	int* suffix_array = (int*)malloc(n * sizeof(int));
 
 	auto start = std::chrono::high_resolution_clock::now();
 	// construct_suffix_array(buffer, suffix_array, n);
-	construct_truncated_suffix_array(buffer, suffix_array, n);
 	printf("\n\n");
-	construct_sais_suffix_array(buffer, suffix_array, n);
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;
 
-	const char* substr = "age";
+
+	start = std::chrono::high_resolution_clock::now();
+	construct_truncated_suffix_array(buffer, suffix_array, n);
+	end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed_truncated = end - start;
+
+	printf("Elapsed time construction:           %f seconds\n", elapsed.count());
+	printf("Elapsed time construction truncated: %f seconds\n", elapsed_truncated.count());
+
+	const char* substr = "kristin";
 	// const char* substr = "netflix";
 
 	start = std::chrono::high_resolution_clock::now();
@@ -814,11 +1006,25 @@ int main() {
 	end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::micro> elapsed_construction = end - start;
 
-	printf("Elapsed time construction: %f seconds\n", elapsed.count());
 	printf("Elapsed time query: 	   %f microseconds\n", elapsed_construction.count());
 
 	// free(buffer);
 	free(suffix_array);
+
+
+	/*
+	 * GROUND TRUTH
+	 Substring found at position 210519125: netflix                                                                                                                                                                                                                                                                               
+	Substring found at position 91720773: netflix                                                                                                                                                                                                                                                                                
+	Substring found at position 57071: netflix                                                                                                                                                                                                                                                                                   
+	Substring found at position 250371227: netflix                                                                                                                                                                                                                                                                               
+	Substring found at position 55302733: netflix                                                                                                                                                                                                                                                                                
+	Substring found at position 53424294: netflix                                                                                                                                                                                                                                                                                
+	Substring found 6 times                                                                                                                                                                                                                                                                                                      
+	Elapsed time construction: 79.231124 seconds                                                                                                                                                                                                                                                                                 
+	Elapsed time query:        6.619000 microseconds  
+	*/
+
 
 	return 0;
 }
