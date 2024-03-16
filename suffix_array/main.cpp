@@ -7,7 +7,8 @@
 #include <chrono>
 #include <omp.h>
 
-#include "libsais/include/libsais64.h"
+// #include "libsais/include/libsais64.h"
+#include "divsufsort.h"
 
 static void print_suffix_array(uint32_t* suffix_array, uint64_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
@@ -23,7 +24,7 @@ static void print_suffix_array_chars(const char* str, int* suffix_array, uint64_
 	printf("\n");
 }
 
-void two_char_radix_sort(
+void two_char_bucket_sort(
 		const char* str,
 		uint32_t* bucket_starts,
 		uint32_t* suffix_array,
@@ -33,7 +34,7 @@ void two_char_radix_sort(
 
 	uint32_t buckets[TWO_CHAR_BUCKETS] = {0};
 
-	// Do initial radix sort up to 2 char length (bucket sort)
+	// Do initial bucket sort up to 2 char length (bucket sort)
 	for (uint32_t i = 0; i < (int64_t)n - 1; ++i) {
 		uint16_t two_char = (uint16_t)str[i] * 256 + (uint16_t)str[i + 1];
 		++buckets[two_char];
@@ -55,52 +56,15 @@ void two_char_radix_sort(
 	}
 }
 
-void three_char_radix_sort(
-		const char* str,
-		uint32_t** bucket_starts,
-		uint32_t* suffix_array,
-		uint64_t n
-) {
-	constexpr uint64_t THREE_CHAR_BUCKETS = 256 * 256 * 256;
 
-	uint32_t* buckets = (uint32_t*)malloc(THREE_CHAR_BUCKETS * sizeof(uint32_t));
-	memset(buckets, 0, THREE_CHAR_BUCKETS * sizeof(uint32_t));
-
-	// Do initial radix sort up to 2 char length (bucket sort)
-	for (int64_t i = 0; i < (int64_t)n - 3; ++i) {
-		uint32_t three_char = (uint32_t)(uint8_t)str[i] * 65536 + 
-							  (uint32_t)(uint8_t)str[i + 1] * 256 + 
-							  (uint32_t)(uint8_t)str[i + 2];
-		++buckets[three_char];
-	}
-
-	uint32_t offset = 0;
-	for (uint64_t i = 0; i < THREE_CHAR_BUCKETS; ++i) {
-		(*bucket_starts)[i] = offset;
-		offset += buckets[i];
-	}
-
-	for (int64_t i = 0; i < (int64_t)n - 3; ++i) {
-		uint32_t three_char = (uint32_t)(uint8_t)str[i] * 65536 + 
-							  (uint32_t)(uint8_t)str[i + 1] * 256 + 
-							  (uint32_t)(uint8_t)str[i + 2];
-		uint64_t new_idx = (*bucket_starts)[three_char];
-
-		suffix_array[new_idx] = i;
-		++(*bucket_starts)[three_char];
-	}
-
-	free(buckets);
-}
-
-void recursive_radix_sort(
+void recursive_bucket_sort(
 		const char* str,
 		uint32_t* suffix_array,
 		uint32_t* temp_suffix_array,
 		int string_length,
 		uint64_t n,
-		int max_depth = 4,
-		int current_depth = 0
+		int max_depth,
+		int current_depth
 ) {
 	// Base case
 	if (current_depth == max_depth) {
@@ -111,7 +75,8 @@ void recursive_radix_sort(
 		// Do insertion sort
 		for (uint64_t i = 1; i < n; ++i) {
 			int j = i;
-			while (j > 0 && strncmp(str + suffix_array[j], str + suffix_array[j - 1], max_depth) < 0) {
+			// while (j > 0 && strncmp(str + suffix_array[j], str + suffix_array[j - 1], max_depth) < 0) {
+			while (j > 0 && strncmp(str + suffix_array[j] + current_depth, str + suffix_array[j - 1] + current_depth, max_depth) < 0) {
 				std::swap(suffix_array[j], suffix_array[j - 1]);
 				--j;
 			}
@@ -119,17 +84,14 @@ void recursive_radix_sort(
 		return;
 	}
 
-	// Do radix sort of first char. Then in each bucket, skip
-	// current_depth chars and do radix sort of next char.
+	// Do bucket sort of first char. Then in each bucket, skip
+	// current_depth chars and do bucket sort of next char.
 	constexpr int NUM_BUCKETS 	   		= 256;
 	uint32_t buckets[NUM_BUCKETS] 	    = {0};
 	uint32_t bucket_starts[NUM_BUCKETS] = {0};
 
 	for (uint64_t i = 0; i < n; ++i) {
 		int char_idx = suffix_array[i] + current_depth;
-		// if (char_idx >= string_length) {
-			// continue;
-		// }
 		uint8_t char_val = (uint8_t)str[char_idx];
 		++buckets[char_val];
 	}
@@ -152,7 +114,35 @@ void recursive_radix_sort(
 
 	memcpy(suffix_array, temp_suffix_array, n * sizeof(uint32_t));
 
+	// Recalculate bucket starts
+	offset = 0;
+	for (size_t i = 0; i < NUM_BUCKETS; ++i) {
+		bucket_starts[i] = offset;
+		offset += buckets[i];
+	}
+
 	// Recursively sort each bucket
+	if (current_depth == 0) {
+		#pragma omp parallel for schedule(static, 1)
+		for (int i = 0; i < NUM_BUCKETS - 1; ++i) {
+			int bucket_start = bucket_starts[i];
+			int bucket_end   = bucket_starts[i + 1];
+			if (bucket_end - bucket_start <= 1) {
+				continue;
+			}
+
+			recursive_bucket_sort(
+				str,
+				suffix_array + bucket_start,
+				temp_suffix_array + bucket_start,
+				string_length,
+				bucket_end - bucket_start,
+				max_depth,
+				current_depth + 1
+			);
+		}
+		return;
+	}
 	for (int i = 0; i < NUM_BUCKETS - 1; ++i) {
 		int bucket_start = bucket_starts[i];
 		int bucket_end   = bucket_starts[i + 1];
@@ -161,7 +151,7 @@ void recursive_radix_sort(
 		}
 		// printf("Bucket start: %d, end: %d\n", bucket_start, bucket_end);
 
-		recursive_radix_sort(
+		recursive_bucket_sort(
 			str,
 			suffix_array + bucket_start,
 			temp_suffix_array + bucket_start,
@@ -239,44 +229,74 @@ void construct_truncated_suffix_array(
 	for (uint64_t i = 0; i < n; ++i) {
 		suffix_array[i] = i;
 	}
+	alignas(64) uint32_t* temp_suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
+
+	recursive_bucket_sort(
+		str,
+		suffix_array,
+		temp_suffix_array,
+		n,
+		n,
+		max_suffix_length,
+		0
+	);
+	free(temp_suffix_array);
+	return;
 
 	constexpr uint32_t TWO_CHAR_BUCKETS = 256 * 256;
 
 	uint32_t bucket_starts[TWO_CHAR_BUCKETS] = {0};
-	two_char_radix_sort(str, bucket_starts, suffix_array, n - 1);
+	two_char_bucket_sort(str, bucket_starts, suffix_array, n);
 
 	uint32_t max_bucket_size = 0;
 	for (uint32_t i = 0; i < TWO_CHAR_BUCKETS - 1; ++i) {
 		max_bucket_size = std::max(max_bucket_size, bucket_starts[i + 1] - bucket_starts[i]);
 	}
 
-	alignas(64) uint32_t* temp_suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
 
 	int num_threads = omp_get_max_threads();
-	// int CHUNKSIZE = TWO_CHAR_BUCKETS / num_threads;
 	int CHUNKSIZE = 1;
 
-	#pragma omp parallel for schedule(static, CHUNKSIZE)
+
+	// Recalculate bucket starts
+	uint32_t buckets[TWO_CHAR_BUCKETS] = {0};
+	memset(bucket_starts, 0, TWO_CHAR_BUCKETS * sizeof(uint32_t));
+	for (uint32_t i = 0; i < (int64_t)n - 1; ++i) {
+		uint16_t two_char = (uint16_t)str[i] * 256 + (uint16_t)str[i + 1];
+		++buckets[two_char];
+	}
+
+	uint32_t offset = 0;
+
+	for (size_t i = 0; i < TWO_CHAR_BUCKETS; ++i) {
+		bucket_starts[i] = offset;
+		offset += buckets[i];
+	}
+
+	// #pragma omp parallel for schedule(static, CHUNKSIZE)
 	for (uint32_t i = 0; i < TWO_CHAR_BUCKETS - 1; ++i) {
 		if (bucket_starts[i + 1] - bucket_starts[i] <= 1) {
 			continue;
 		}
-		auto start = std::chrono::high_resolution_clock::now();
-		recursive_radix_sort(
+		// auto start = std::chrono::high_resolution_clock::now();
+
+		recursive_bucket_sort(
 				str, 
 				suffix_array + bucket_starts[i], 
 				temp_suffix_array + bucket_starts[i],
-				n - 1, 
+				n, 
 				bucket_starts[i + 1] - bucket_starts[i],
 				max_suffix_length, 
 				2
 				);
+
+		/*
 		auto end = std::chrono::high_resolution_clock::now();
-		// get microseconds
 		std::chrono::duration<double> elapsed = end - start;
 		int microseconds = elapsed.count() * 1000000;
 
-		// printf("Bucket %d: %d  %dus\n", i, bucket_starts[i + 1] - bucket_starts[i], microseconds);
+		printf("Bucket %d: %d  %dus\n", i, bucket_starts[i + 1] - bucket_starts[i], microseconds);
+		*/
 	}
 
 	free(temp_suffix_array);
@@ -962,24 +982,27 @@ int get_substring_positions(
 
 
 int main() {
-	// const char* filename = "/home/jdm365/SearchApp/data/companies_sorted_100k.csv";
+	// const char* filename = "/home/jdm365/SearchApp/data/companies_sorted_1M.csv";
 	const char* filename = "/home/jdm365/SearchApp/data/companies_sorted.csv";
 	// const char* filename = "/home/jdm365/SearchApp/data/companies_sorted_100M.csv";
 
 	char* buffer = nullptr;
 	uint64_t buffer_size;
 	read_text_into_buffer(filename, &buffer, &buffer_size);
+
+	// Just use first 2GB
+	// buffer_size = (1 * (uint64_t)1024 * 1024 * 1024) - 1;
 	/*
 	// char* buffer = (char*)"I work at netflix btw.";
 	char* buffer = (char*)"cabbage";
 	int buffer_size = strlen(buffer);
 	*/
 
-	uint64_t n = buffer_size + 1;
+	uint64_t n = buffer_size;
 	alignas(64) uint32_t* suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
 
 	auto start = std::chrono::high_resolution_clock::now();
-	construct_truncated_suffix_array(buffer, suffix_array, n, 12);
+	construct_truncated_suffix_array(buffer, suffix_array, n);
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed_truncated = end - start;
 
@@ -998,8 +1021,40 @@ int main() {
 	std::chrono::duration<double> elapsed = end - start;
 	*/
 
-	printf("Elapsed time construction truncated: %f seconds\n", elapsed_truncated.count());
+	int* suffix_array2 = (int*)malloc(n * sizeof(int));
+	start = std::chrono::high_resolution_clock::now();
+	divsufsort(
+		(uint8_t*)buffer,
+		suffix_array2,
+		(int)n
+	);
+	end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = end - start;
+
+	printf("Elapsed time construction truncated:  %f seconds\n", elapsed_truncated.count());
 	// printf("Elapsed time construction libsais:   %f seconds\n", elapsed.count());
+	printf("Elapsed time construction divsufsort: %f seconds\n", elapsed.count());
+
+
+	uint32_t num_differeces = 0;
+	for (uint64_t i = 0; i < n; ++i) {
+		if (
+				suffix_array[i] == (uint32_t)suffix_array2[i] 
+					// ||
+				// (suffix_array[i-1] == (uint32_t)suffix_array2[i]) 
+					// ||
+				// (suffix_array[i-2] == (uint32_t)suffix_array2[i]) 
+					// ||
+				// (suffix_array[i-3] == (uint32_t)suffix_array2[i]) 
+					// ||
+				// (suffix_array[i+1] == (uint32_t)suffix_array2[i]) 
+			) {
+			continue;
+		}
+		printf("Difference at index %lu: %u, %u\n", i, suffix_array[i], suffix_array2[i]);
+		++num_differeces;
+	}
+	printf("Num differences: %d/%lu\n", num_differeces, n);
 
 	// const char* substr = "jake the god damn snake";
 	const char* substr = "ibm";
