@@ -14,13 +14,14 @@ COMPILER_FLAGS = [
     "-Wextra",
     "-march=native",
     "-ffast-math",
+    "-fopenmp",
     ## "-fPIC",
 ]
 
 OS = os.uname().sysname
 
 LINUX_LINK_ARGS = [
-        ## "-fopenmp",
+    "-fopenmp",
     "-lc++",
     "-lc++abi",
     ## "-lleveldb",
