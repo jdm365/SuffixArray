@@ -26,7 +26,6 @@ void recursive_bucket_sort(
 		// Do insertion sort
 		for (uint64_t i = 1; i < n; ++i) {
 			int j = i;
-			// while (j > 0 && strncmp(str + suffix_array[j], str + suffix_array[j - 1], max_depth) < 0) {
 			while (j > 0 && strncmp(str + suffix_array[j] + current_depth, str + suffix_array[j - 1] + current_depth, max_depth) < 0) {
 				std::swap(suffix_array[j], suffix_array[j - 1]);
 				--j;
@@ -254,4 +253,22 @@ std::vector<uint32_t> get_matching_indices(
 	}
 
 	return row_indices;
+}
+
+std::vector<uint32_t> get_matching_indices_fast(
+	const char* str,
+	uint32_t* suffix_array,
+	uint32_t* suffix_array_idxs,
+	uint64_t n,
+	const char* substring,
+	int k 
+) {
+	std::vector<uint32_t> matches = get_substring_positions(str, suffix_array, n, substring);
+	size_t num_matches = std::min((size_t)k, matches.size());
+	matches.resize(num_matches);
+
+	for (size_t i = 0; i < num_matches; ++i) {
+		matches[i] = suffix_array_idxs[matches[i]];
+	}
+	return matches;
 }

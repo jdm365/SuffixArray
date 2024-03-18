@@ -40,3 +40,12 @@ std::vector<uint32_t> get_matching_indices(
 	uint32_t num_rows,
 	int k 
 );
+
+std::vector<uint32_t> get_matching_indices_fast(
+	const char* str,
+	uint32_t* suffix_array,
+	uint32_t* suffix_array_idxs,
+	uint64_t n,
+	const char* substring,
+	int k 
+);
