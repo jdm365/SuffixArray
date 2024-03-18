@@ -28,22 +28,7 @@ cdef extern from "engine.h":
         uint32_t text_length,
         uint32_t max_suffix_length
     ) nogil
-    vector[uint32_t] get_substring_positions(
-        const char* text,
-        uint32_t* suffix_array,
-        uint32_t text_length,
-        const char* substring
-    )
     vector[uint32_t] get_matching_indices(
-        const char* text,
-        uint32_t* suffix_array,
-        uint32_t text_length,
-        const char* substring,
-        const uint32_t* row_offsets,
-        uint32_t num_rows,
-        int k
-    )
-    vector[uint32_t] get_matching_indices_fast(
         const char* text,
         uint32_t* suffix_array,
         uint32_t* suffix_array_idxs,
@@ -120,26 +105,9 @@ cdef class SuffixArray:
         print(f"Suffix array indices constructed in {perf_counter() - init:.2f} seconds")
 
 
-
     def query(self, substring: str, k: int = 1000):
         cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
             get_matching_indices(
-                self.text.c_str(),
-                self.suffix_array.data(),
-                self.text_length,
-                substring.lower().encode('utf-8'),
-                self.row_offsets.data(),
-                self.num_rows,
-                k
-                ),
-            dtype=np.uint32
-        )
-        return positions
-
-
-    def query_idxs(self, substring: str, k: int = 1000):
-        cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
-            get_matching_indices_fast(
                 self.text.c_str(),
                 self.suffix_array.data(),
                 self.suffix_array_idxs.data(),

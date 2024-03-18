@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <utility>
 
 void recursive_bucket_sort(
 	const char* str,
@@ -165,7 +166,7 @@ void construct_truncated_suffix_array(
 }
 
 
-std::vector<uint32_t> get_substring_positions(
+inline std::pair<uint32_t, uint32_t> get_substring_positions(
     const char* str,
     uint32_t* suffix_array,
     uint64_t n,
@@ -190,7 +191,7 @@ std::vector<uint32_t> get_substring_positions(
     }
 
     if (start == -1) {
-        return std::vector<uint32_t>();
+        return std::make_pair(-1, -1);
     }
 
     // Reset for searching the last occurrence
@@ -206,56 +207,10 @@ std::vector<uint32_t> get_substring_positions(
         }
     }
 
-	std::vector<uint32_t> matches;
-	matches.reserve(end - start + 1);
-	for (int i = start; i <= end; ++i) {
-		matches.push_back(suffix_array[i]);
-	}
-	return matches;
+	return std::make_pair(start, end);
 }
 
 std::vector<uint32_t> get_matching_indices(
-	const char* str,
-	uint32_t* suffix_array,
-	uint64_t n,
-	const char* substring,
-	const uint32_t* row_offsets,
-	uint32_t num_rows,
-	int k
-) {
-	// First get matches indices from the suffix array
-	// then convert these to row indices again with binary search.
-	std::vector<uint32_t> matches = get_substring_positions(str, suffix_array, n, substring);
-	printf("Num matches: %lu\n", matches.size());
-
-	size_t num_matches = std::min((size_t)k, matches.size());
-
-	std::vector<uint32_t> row_indices;
-	row_indices.reserve(num_matches);
-
-	for (uint32_t i = 0; i < num_matches; ++i) {
-		uint32_t match = matches[i];
-		uint32_t row = 0;
-		uint32_t first = 0;
-		uint32_t last = num_rows - 1;
-		while (first <= last) {
-			uint32_t mid = (first + last) / 2;
-			if (row_offsets[mid] <= match) {
-				row = mid;
-				first = mid + 1;
-			}
-			else {
-				last = mid - 1;
-			}
-		}
-
-		row_indices.push_back(row);
-	}
-
-	return row_indices;
-}
-
-std::vector<uint32_t> get_matching_indices_fast(
 	const char* str,
 	uint32_t* suffix_array,
 	uint32_t* suffix_array_idxs,
@@ -263,12 +218,23 @@ std::vector<uint32_t> get_matching_indices_fast(
 	const char* substring,
 	int k 
 ) {
-	std::vector<uint32_t> matches = get_substring_positions(str, suffix_array, n, substring);
-	size_t num_matches = std::min((size_t)k, matches.size());
-	matches.resize(num_matches);
+	std::pair<uint32_t, uint32_t> match_idxs = get_substring_positions(
+			str, 
+			suffix_array, 
+			n, 
+			substring
+			);
+	if (match_idxs.first == -1) {
+		return std::vector<uint32_t>();
+	}
 
-	for (size_t i = 0; i < num_matches; ++i) {
-		matches[i] = suffix_array_idxs[matches[i]];
+	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
+
+	std::vector<uint32_t> matches;
+	matches.reserve(num_matches);
+
+	for (uint32_t i = match_idxs.first; i <= match_idxs.second; ++i) {
+		matches.push_back(suffix_array_idxs[suffix_array[i]]);
 	}
 	return matches;
 }
