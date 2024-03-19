@@ -3,9 +3,7 @@
 cimport cython
 
 from libc.stdint cimport uint32_t, uint64_t
-from cython.parallel cimport parallel
 from cython.parallel cimport prange
-cimport openmp
 
 from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector
@@ -37,12 +35,18 @@ cdef extern from "engine.h":
         int k
     )
 
+cdef void lowercase_string(string& s) nogil:
+    cdef int i
+    for i in prange(s.size()):
+        if s[i] >= 65 and s[i] <= 90:
+            s[i] += 32
+
 
 cdef class SuffixArray:
     cdef string text
     cdef vector[uint32_t] suffix_array
     cdef vector[uint32_t] suffix_array_idxs
-    cdef vector[uint32_t] row_offsets
+    ## cdef vector[uint32_t] row_offsets
     cdef uint32_t max_suffix_length
     cdef uint64_t text_length
     cdef uint32_t num_rows
@@ -55,30 +59,36 @@ cdef class SuffixArray:
             max_suffix_length = 64
             ):
         self.max_suffix_length = <uint32_t>max_suffix_length
+
+        if not isinstance(documents, list):
+            try:
+                documents = list(documents)
+            except:
+                raise ValueError("Documents must be a list of strings")
+
         self.construct_truncated_suffix_array(documents)
         self.num_rows = len(documents)
 
 
-    cpdef void construct_truncated_suffix_array(self, documents):
-        ## Convert text to a single string with newline separators
-        ## and get row offsets
+    cpdef void construct_truncated_suffix_array(self, list documents):
+        ## Convert text to a single string with 
+        ## newline separators and get row offsets
         init = perf_counter()
-        cdef vector[uint32_t] row_offsets = [0]
-        cdef np.ndarray[uint32_t, ndim=1] str_lengths = np.array(
-                [0] + [len(doc.lower().encode('utf-8')) + 1 for doc in documents[:-1]],
-                dtype=np.uint32
-            )
-        print(f"Text converted to single string in {perf_counter() - init:.2f} seconds")
-
-        self.text = '\n'.join(documents).lower().encode('utf-8')
-        print(f"Text converted to single string in {perf_counter() - init:.2f} seconds")
-
-        self.text_length = <uint64_t>len(self.text)
-        self.row_offsets = np.cumsum(str_lengths, dtype=np.uint32).data
+        cdef vector[uint32_t] row_offsets
         self.num_rows = len(documents)
-        print(f"Text converted to single string in {perf_counter() - init:.2f} seconds")
 
+        cdef uint32_t global_offset = 0
+        cdef int _id
+        row_offsets.push_back(0)
+        for _id in range(self.num_rows - 1):
+            global_offset += len(documents[_id].encode('utf-8')) + 1
+            row_offsets.push_back(global_offset)
+
+        self.text = '\n'.join(documents).encode('utf-8')
+        lowercase_string(self.text)
+        self.text_length = <uint64_t>len(self.text)
         self.suffix_array.resize(self.text_length)
+        print(f"Text preprocessed in {perf_counter() - init:.2f} seconds")
 
         init = perf_counter()
         print("...Constructing suffix array...")
@@ -91,18 +101,16 @@ cdef class SuffixArray:
             )
         print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
 
-        init = perf_counter()
         ## Get the suffix array indices
         self.suffix_array_idxs.resize(self.text_length)
         cdef int i, j
         cdef int n = self.num_rows
         with nogil:
             for i in prange(n-1):
-                for j in range(self.row_offsets[i], self.row_offsets[i+1]):
+                for j in range(row_offsets[i], row_offsets[i+1]):
                     self.suffix_array_idxs[j] = i
 
-        self.suffix_array_idxs[self.row_offsets[n-1]] = self.num_rows - 1
-        print(f"Suffix array indices constructed in {perf_counter() - init:.2f} seconds")
+        self.suffix_array_idxs[row_offsets[n-1]] = self.num_rows - 1
 
 
     def query(self, substring: str, k: int = 1000):

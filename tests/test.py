@@ -1,59 +1,73 @@
-from bm25 import BM25
 import pandas as pd
-import numpy as np
-import os
 from tqdm import tqdm
 from time import perf_counter
+import os
+
+import pysubstringsearch
+from suffix_array import SuffixArray
 
 
 
 if __name__ == '__main__':
-    query = "netflix inc"
+    DATA_DIR = '/home/jdm365/SearchApp/data'
+    FILENAME = 'companies_sorted.csv'
+    FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
-    FILENAME = '/home/jdm365/SearchApp/basic_search/data/companies_sorted.csv'
-    ## FILENAME = '/Users/jakemehlman/Kaggle/Kaggle_Competition_Foursquare/data/train.csv'
-    ## FILENAME = '/home/jdm365/SearchApp/basic_search/data/companies_sorted_1M.csv'
+    companies = pd.read_csv(
+            FILEPATH,
+            usecols=['name'],
+            ## nrows=1000
+            )['name'].str.upper()
+    '''
+    with open(os.path.join(DATA_DIR, 'names_only.txt'), 'r') as f:
+        companies = f.readlines()
+    '''
 
-    names = pd.read_csv(FILENAME, usecols=['name']).reset_index(drop=True).name.tolist()
+    rand_companies = companies.sample(1000)
 
-    ## FILENAME = '/home/jdm365/search-benchmark-game/corpus_500k.json'
-    FILENAME = '/home/jdm365/search-benchmark-game/corpus.json'
-    ## print(os.system(f"head -5 {FILENAME}"))
     init = perf_counter()
-    ## df = pd.read_json(FILENAME, lines=True)
-    time = perf_counter() - init
-    print(f"Time taken: {time:.2f} seconds")
-    ## exit()
-    ## print(df)
-    ## df.to_json('/home/jdm365/search-benchmark-game/corpus_500k.json', orient='records', lines=True)
-    ## FILENAME = '/home/jdm365/search-benchmark-game/corpus.json'
-
-    model = BM25(
-            filename=FILENAME, 
-            text_col='text',
-            ## db_dir='bm25_db'
-            ## max_df=0.001
+    writer = pysubstringsearch.Writer(
+            index_file_path='tmp.idx'
             )
 
-    rand_idxs = np.random.choice(len(names), 10_000, replace=False)
+    for idx, name in enumerate(tqdm(companies, desc='Building index')):
+        writer.add_entry(name)
+    ## joblib.dump(self.inverted_index, 'inverted_index.joblib', protocol=4)
 
-    scores, indices = model.query(query)
+    writer.finalize()
+    print(f'Building pysubstringsearch index took {perf_counter() - init:.2f} seconds')
+
+    reader = pysubstringsearch.Reader(
+        index_file_path='tmp.idx'
+        )
 
     init = perf_counter()
-    for idx in tqdm(rand_idxs, desc="Querying"):
-        ## scores, indices = model.query(names[idx])
-        records = model.get_topk_docs(names[idx], k=10)
+    idxs = reader.search('NETFLIX')
+    print(f'Querying pysubstringsearch index took {1e6 * (perf_counter() - init):.2f} microseconds')
+
+    os.remove('tmp.idx')
+
+    init = perf_counter()
+    for company in rand_companies:
+        idxs = reader.search(company)
     time = perf_counter() - init
-    print(f"Time taken: {time:.2f} seconds")
-    print(f"Queries per second: {len(rand_idxs) / time:.2f}")
+    microseconds = 1e6 * time / 1000
+    print(f'Querying pysubstringsearch index took avg {microseconds:.2f} microseconds')
 
-    ##scores, indices = model.query(query)
-    ## time_us = (perf_counter() - init) * 1e6
-    ## print(f"Time to get top 10: {time_us:.2f} micro seconds")
 
-    ## time_us = (perf_counter() - init) * 1e6
-    ## print(f"Time to get top 10: {time_us:.2f} micro seconds")
-    records = model.get_topk_docs(query, k=10, init_max_df=500)
-    print(pd.DataFrame(records))
-    ## print(scores)
-    ## print(indices)
+    init = perf_counter()
+    suffix_array = SuffixArray(documents=companies, max_suffix_length=64)
+    print(f'Building suffix array index took {perf_counter() - init:.2f} seconds')
+
+    init = perf_counter()
+    idxs = suffix_array.query('NETFLIX')
+    print(f'Querying suffix array took {1e6 * (perf_counter() - init):.2f} microseconds')
+
+    print(companies.iloc[idxs])
+
+    init = perf_counter()
+    for company in tqdm(rand_companies, desc='Querying suffix array'):
+        idxs = suffix_array.query(company)
+    time = perf_counter() - init
+    microseconds = 1e6 * time / 1000
+    print(f'Querying suffix array took avg {microseconds:.2f} microseconds')
