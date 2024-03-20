@@ -12,7 +12,7 @@ from suffix_array import SuffixArray
 docs = [
     "The quick brown fox jumps over the lazy dog",
     "I am going to the store to buy some milk",
-    "Uhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh:
+    "Uhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
 ]
 
 ## Creates and builds the index
