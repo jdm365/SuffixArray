@@ -1,5 +1,5 @@
-# BM25
-BM25 algorithm written in c++ and exposed through cython.
+# SuffixArray 
+Truncated SuffixArray based search index algorithm written in c++ and exposed through cython.
 
 To install
 ```
