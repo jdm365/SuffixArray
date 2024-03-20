@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "robin_hood.h"
+
 void recursive_bucket_sort(
 	const char* str,
 	uint32_t* suffix_array,
@@ -74,7 +76,8 @@ void recursive_bucket_sort(
 
 	// Recursively sort each bucket
 	if (current_depth == 0) {
-		#pragma omp parallel for schedule(static, 1)
+		// #pragma omp parallel for schedule(static, 1)
+		#pragma omp parallel for schedule(guided)
 		for (int i = 0; i < NUM_BUCKETS - 1; ++i) {
 			int bucket_start = bucket_starts[i];
 			int bucket_end   = bucket_starts[i + 1];
@@ -233,8 +236,12 @@ std::vector<uint32_t> get_matching_indices(
 	std::vector<uint32_t> matches;
 	matches.reserve(num_matches);
 
+	robin_hood::unordered_flat_set<uint32_t> match_set;
+
 	for (uint32_t i = match_idxs.first; i <= match_idxs.second; ++i) {
-		matches.push_back(suffix_array_idxs[suffix_array[i]]);
+		if (match_set.insert(suffix_array_idxs[suffix_array[i]]).second) {
+			matches.push_back(suffix_array_idxs[suffix_array[i]]);
+		}
 	}
 	return matches;
 }
