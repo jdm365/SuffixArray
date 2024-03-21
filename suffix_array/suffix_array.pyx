@@ -28,6 +28,7 @@ cimport numpy as np
 import numpy as np
 from tqdm import tqdm
 import os
+from typing import List
 np.import_array()
 
 import lz4.frame
@@ -70,7 +71,17 @@ cdef class SuffixArray:
     cdef str save_dir
 
 
-    def save(self):
+    def save(self, save_dir: str):
+        if save_dir in {'suffix_array', 'tests', 'data'}:
+            raise ValueError("Cannot save to reserved directory")
+
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        else:
+            os.system(f"rm -rf {save_dir}/*")
+
+        self.save_dir = save_dir
+
         cdef FILE* f
 
         ## Save text
@@ -84,9 +95,9 @@ cdef class SuffixArray:
         fclose(f)
 
         ## Save suffix array indices
-        ## f = fopen(os.path.join(self.save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'wb')
-        ## fwrite(self.suffix_array_idxs.data(), sizeof(uint32_t), self.text_length, f)
-        ## fclose(f)
+        f = fopen(os.path.join(self.save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'wb')
+        fwrite(self.suffix_array_idxs.data(), sizeof(uint32_t), self.text_length, f)
+        fclose(f)
 
         ## Save metadata
         with open(os.path.join(self.save_dir, 'metadata.txt'), 'w') as file:
@@ -96,13 +107,13 @@ cdef class SuffixArray:
             file.write(f"num_threads: {self.num_threads}\n")
 
 
-    def load(self):
+    def load(self, save_dir: str):
         cdef FILE* f
 
         ## Load text
-        f = fopen(os.path.join(self.save_dir, 'text.txt').encode('utf-8'), 'rb')
+        f = fopen(os.path.join(save_dir, 'text.txt').encode('utf-8'), 'rb')
         if f is NULL:
-            raise ValueError(f"File {self.save_dir} does not exist")
+            raise ValueError(f"File {save_dir} does not exist")
 
         fseek(f, 0, SEEK_END)
         cdef uint64_t buffer_size = ftell(f)
@@ -114,7 +125,7 @@ cdef class SuffixArray:
         fclose(f)
 
         ## Load suffix array
-        f = fopen(os.path.join(self.save_dir, 'suffix_array.bin').encode('utf-8'), 'rb')
+        f = fopen(os.path.join(save_dir, 'suffix_array.bin').encode('utf-8'), 'rb')
         fseek(f, 0, SEEK_END)
         buffer_size = ftell(f)
         fseek(f, 0, SEEK_SET)
@@ -124,7 +135,7 @@ cdef class SuffixArray:
         fclose(f)
 
         ## Load suffix array indices
-        f = fopen(os.path.join(self.save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'rb')
+        f = fopen(os.path.join(save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'rb')
         fseek(f, 0, SEEK_END)
         buffer_size = ftell(f)
         fseek(f, 0, SEEK_SET)
@@ -133,7 +144,7 @@ cdef class SuffixArray:
         fclose(f)
 
         ## Load metadata
-        with open(os.path.join(self.save_dir, 'metadata.txt'), 'r') as file:
+        with open(os.path.join(save_dir, 'metadata.txt'), 'r') as file:
             metadata = file.read().split('\n')
 
             self.max_suffix_length = int(metadata[0].split(': ')[1])
@@ -145,17 +156,14 @@ cdef class SuffixArray:
     def __init__(
             self, 
             documents,
-            max_suffix_length = 64,
-            save_dir: str = 'suffix_array_data'
+            max_suffix_length: int = 64,
+            load_dir: str = '' 
             ):
         self.max_suffix_length = <uint32_t>max_suffix_length
 
-        ## Create dir and dump binary data into individual files
-        if os.path.exists(save_dir):
-            raise ValueError(f"File {save_dir} already exists")
-
-        self.save_dir = save_dir
-        os.makedirs(self.save_dir)
+        if load_dir != '':
+            self.load(load_dir)
+            return
 
         if not isinstance(documents, list):
             try:
@@ -196,6 +204,7 @@ cdef class SuffixArray:
 
         self.suffix_array_idxs[row_offsets[n-1]] = self.num_rows - 1
 
+        '''
         ## Write to disk to avoid holding too much memory.
         cdef FILE* f
         f = fopen(os.path.join(self.save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'wb')
@@ -203,8 +212,9 @@ cdef class SuffixArray:
         fclose(f)
 
         ## Free suffix array indices
-        ## self.suffix_array_idxs.clear()
-        ## self.suffix_array_idxs.shrink_to_fit()
+        self.suffix_array_idxs.clear()
+        self.suffix_array_idxs.shrink_to_fit()
+        '''
 
         self.suffix_array.resize(self.text_length)
         print(f"Text preprocessed in {perf_counter() - init:.2f} seconds")

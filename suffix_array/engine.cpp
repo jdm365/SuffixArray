@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <utility>
+#include <queue>
 
 #include "robin_hood.h"
 
@@ -238,7 +239,7 @@ std::vector<uint32_t> get_matching_indices(
 
 	robin_hood::unordered_flat_set<uint32_t> match_set;
 
-	for (uint32_t i = match_idxs.first; i <= match_idxs.second; ++i) {
+	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
 		if (match_set.insert(suffix_array_idxs[suffix_array[i]]).second) {
 			matches.push_back(suffix_array_idxs[suffix_array[i]]);
 		}

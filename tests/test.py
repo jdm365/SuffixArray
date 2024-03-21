@@ -26,8 +26,9 @@ if __name__ == '__main__':
         companies = f.readlines()
     '''
 
+    N = 10_000
     ## rand_companies = companies.sample(1000)
-    rand_companies = [x[:8] for x in companies.sample(1000)]
+    rand_companies = [x[:8] for x in companies.sample(N)]
 
     init = perf_counter()
     writer = pysubstringsearch.Writer(
@@ -61,15 +62,6 @@ if __name__ == '__main__':
     suffix_array = SuffixArray(documents=companies, max_suffix_length=32)
     print(f'Building suffix array index took {perf_counter() - init:.2f} seconds')
 
-    ## test save and load
-    init = perf_counter()
-    suffix_array.save()
-    print(f'Saving suffix array index took {perf_counter() - init:.2f} seconds')
-
-    init = perf_counter()
-    suffix_array.load()
-    print(f'Loading suffix array index took {perf_counter() - init:.2f} seconds')
-
     init = perf_counter()
     idxs = suffix_array.query('NETFLIX')
     print(f'Querying suffix array took {1e6 * (perf_counter() - init):.2f} microseconds')
@@ -98,9 +90,10 @@ if __name__ == '__main__':
     os.system('du -sh tmp.idx')
 
     os.remove('tmp.idx')
-    os.system('rm -rf suffix_array_data')
+    ## os.system('rm -rf suffix_array_data')
 
 
+    '''
     ## Plot query time vs number of results
     import matplotlib.pyplot as plt
     import numpy as np
@@ -122,3 +115,4 @@ if __name__ == '__main__':
     plt.ylabel('Number of results')
     plt.title('Query time vs number of results')
     plt.show()
+    '''
