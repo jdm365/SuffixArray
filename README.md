@@ -16,7 +16,7 @@ docs = [
 ]
 
 ## Creates and builds the index
-suffix_arrray = SuffixArray(documents=docs, max_suffix_length=32)
+suffix_array = SuffixArray(documents=docs, max_suffix_length=32)
 
 
 ## Query the index. Returns idxs of documents that contain the query substring.
