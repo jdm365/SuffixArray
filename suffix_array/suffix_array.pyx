@@ -31,8 +31,6 @@ import os
 from typing import List
 np.import_array()
 
-import lz4.frame
-
 from time import perf_counter
 
 
