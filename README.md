@@ -6,7 +6,7 @@ To install
 make install
 ```
 
-```
+```python
 from suffix_array import SuffixArray
 
 docs = [
