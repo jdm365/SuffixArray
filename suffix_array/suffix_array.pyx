@@ -49,13 +49,6 @@ cdef extern from "engine.h":
         uint32_t* suffix_array_size,
         uint32_t max_suffix_length
     ) nogil
-    void _construct_truncated_suffix_array_from_csv(
-        const char* csv_file,
-        uint32_t column_idx,
-        uint32_t* suffix_array,
-        uint32_t* suffix_array_size,
-        uint32_t max_suffix_length
-    ) nogil
     vector[uint32_t] get_matching_indices(
         const char* text,
         uint32_t* suffix_array,
@@ -123,7 +116,7 @@ cdef class SuffixArray:
         self.from_csv = False
 
         if len(documents) > 0:
-            self.construct_truncated_suffix_array(documents)
+            self.construct_truncated_suffix_array_documents(documents)
             self.num_rows = len(documents)
         else:
             if not self.csv_file.endswith('.csv'):
@@ -143,6 +136,95 @@ cdef class SuffixArray:
             self.construct_truncated_suffix_array_from_csv()
 
 
+
+    cpdef void construct_truncated_suffix_array_documents(self, list documents):
+        ## Convert text to a single string with 
+        ## newline separators and get row offsets
+        init = perf_counter()
+        cdef vector[uint32_t] row_offsets
+        self.num_rows = len(documents)
+
+        cdef uint32_t global_offset = 0
+        cdef int _id
+        row_offsets.push_back(0)
+        for _id in range(self.num_rows - 1):
+            global_offset += len(documents[_id].encode('utf-8')) + 1
+            row_offsets.push_back(global_offset)
+
+        self.text = '\n'.join(documents).encode('utf-8')
+        lowercase_string(self.text)
+        self.text_length = <uint64_t>len(self.text)
+
+        ## Get the suffix array indices
+        self.suffix_array_idxs.resize(self.text_length)
+        cdef int i, j
+        cdef int n = self.num_rows
+        with nogil:
+            for i in prange(n-1):
+                for j in range(row_offsets[i], row_offsets[i+1]):
+                    self.suffix_array_idxs[j] = i
+
+        self.suffix_array_idxs[row_offsets[n-1]] = self.num_rows - 1
+
+        self.suffix_array.resize(self.text_length)
+        print(f"Text preprocessed in {perf_counter() - init:.2f} seconds")
+
+        init = perf_counter()
+        print("...Constructing suffix array...")
+        with nogil:
+            construct_truncated_suffix_array(
+                self.text.c_str(),
+                self.suffix_array.data(),
+                self.text_length,
+                self.max_suffix_length,
+                True
+            )
+        print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
+
+
+    cpdef void construct_truncated_suffix_array_from_csv(self):
+
+        init = perf_counter()
+        print("...Constructing suffix array from csv...")
+        cdef string filename = self.csv_file.encode('utf-8')
+        with nogil:
+            construct_truncated_suffix_array_from_csv(
+                filename.c_str(),
+                self.column_idx,
+                self.suffix_array,
+                &self.text_length,
+                self.max_suffix_length
+            )
+        print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
+        print(f"Text length: {self.text_length}")
+
+
+    def query_indices(self, substring: str, k: int = 1000):
+        cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
+            get_matching_indices(
+                self.text.c_str(),
+                self.suffix_array.data(),
+                self.suffix_array_idxs.data(),
+                self.text_length,
+                substring.lower().encode('utf-8'),
+                k
+                ),
+            dtype=np.uint32
+        )
+        return positions
+
+    def query_records(self, substring: str, k: int = 1000):
+        cdef vector[string] _records = get_matching_records(
+            self.csv_file.encode('utf-8'),
+            self.suffix_array.data(),
+            self.text_length,
+            substring.lower().encode('utf-8'),
+            k
+        )
+
+        records = [x.decode('utf-8').split(',') for x in _records]
+        records = [dict(zip(self.columns, x)) for x in records]
+        return records
 
 
     def save(self, save_dir: str):
@@ -227,92 +309,3 @@ cdef class SuffixArray:
             self.num_threads       = int(metadata[3].split(': ')[1])
 
 
-
-    cpdef void construct_truncated_suffix_array(self, list documents):
-        ## Convert text to a single string with 
-        ## newline separators and get row offsets
-        init = perf_counter()
-        cdef vector[uint32_t] row_offsets
-        self.num_rows = len(documents)
-
-        cdef uint32_t global_offset = 0
-        cdef int _id
-        row_offsets.push_back(0)
-        for _id in range(self.num_rows - 1):
-            global_offset += len(documents[_id].encode('utf-8')) + 1
-            row_offsets.push_back(global_offset)
-
-        self.text = '\n'.join(documents).encode('utf-8')
-        lowercase_string(self.text)
-        self.text_length = <uint64_t>len(self.text)
-
-        ## Get the suffix array indices
-        self.suffix_array_idxs.resize(self.text_length)
-        cdef int i, j
-        cdef int n = self.num_rows
-        with nogil:
-            for i in prange(n-1):
-                for j in range(row_offsets[i], row_offsets[i+1]):
-                    self.suffix_array_idxs[j] = i
-
-        self.suffix_array_idxs[row_offsets[n-1]] = self.num_rows - 1
-
-        self.suffix_array.resize(self.text_length)
-        print(f"Text preprocessed in {perf_counter() - init:.2f} seconds")
-
-        init = perf_counter()
-        print("...Constructing suffix array...")
-        with nogil:
-            construct_truncated_suffix_array(
-                self.text.c_str(),
-                self.suffix_array.data(),
-                self.text_length,
-                self.max_suffix_length,
-                True
-            )
-        print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
-
-
-    cpdef void construct_truncated_suffix_array_from_csv(self):
-
-        init = perf_counter()
-        print("...Constructing suffix array from csv...")
-        cdef string filename = self.csv_file.encode('utf-8')
-        with nogil:
-            construct_truncated_suffix_array_from_csv(
-                filename.c_str(),
-                self.column_idx,
-                self.suffix_array,
-                &self.text_length,
-                self.max_suffix_length
-            )
-        print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
-        print(f"Text length: {self.text_length}")
-
-
-    def query(self, substring: str, k: int = 1000):
-        cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
-            get_matching_indices(
-                self.text.c_str(),
-                self.suffix_array.data(),
-                self.suffix_array_idxs.data(),
-                self.text_length,
-                substring.lower().encode('utf-8'),
-                k
-                ),
-            dtype=np.uint32
-        )
-        return positions
-
-    def query_records(self, substring: str, k: int = 1000):
-        cdef vector[string] _records = get_matching_records(
-            self.csv_file.encode('utf-8'),
-            self.suffix_array.data(),
-            self.text_length,
-            substring.lower().encode('utf-8'),
-            k
-        )
-
-        records = [x.decode('utf-8').split(',') for x in _records]
-        records = [dict(zip(self.columns, x)) for x in records]
-        return records
