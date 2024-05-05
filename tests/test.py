@@ -10,8 +10,8 @@ from suffix_array import SuffixArray
 
 if __name__ == '__main__':
     DATA_DIR = '/home/jdm365/SearchApp/data'
-    FILENAME = 'companies_sorted_100M.csv'
-    ## FILENAME = 'companies_sorted.csv'
+    ## FILENAME = 'companies_sorted_100M.csv'
+    FILENAME = 'companies_sorted.csv'
     ## FILENAME = 'companies_sorted_1M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
 
     init = perf_counter()
-    suffix_array = SuffixArray(documents=companies, max_suffix_length=32)
+    suffix_array = SuffixArray(documents=companies.tolist(), max_suffix_length=32)
     print(f'Building suffix array index took {perf_counter() - init:.2f} seconds')
 
     init = perf_counter()

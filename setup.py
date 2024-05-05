@@ -8,7 +8,7 @@ MODULE_NAME = "suffix_array"
 
 COMPILER_FLAGS = [
     "-std=c++17",
-    "-stdlib=libc++",
+    ## "-stdlib=libc++",
     "-O3",
     "-Wall",
     "-Wextra",

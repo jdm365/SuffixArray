@@ -8,8 +8,8 @@
 #include <stdbool.h>
 #include <omp.h>
 
-// #include "libsais/include/libsais64.h"
-#include "divsufsort.h"
+// #include "divsufsort.h"
+#include "engine.h"
 
 static void print_suffix_array(uint32_t* suffix_array, uint64_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
@@ -26,6 +26,7 @@ static void print_suffix_array_chars(const char* str, int* suffix_array, uint64_
 }
 
 
+/*
 void read_text_into_buffer(
 		const char* filename,
 		char** buffer,
@@ -46,11 +47,12 @@ void read_text_into_buffer(
 
 	*buffer = (char*)malloc(*buffer_size);
 
-	fread(*buffer, 1, *buffer_size, file);
+	size_t _ = fread(*buffer, 1, *buffer_size, file);
 	fclose(file);
 
 	fflush(stdout);
 }
+*/
 
 
 void construct_suffix_array_default(
@@ -107,6 +109,7 @@ void two_char_bucket_sort(
 }
 
 
+/*
 void recursive_bucket_sort(
 		const char* str,
 		uint32_t* suffix_array,
@@ -212,6 +215,7 @@ void recursive_bucket_sort(
 		);
 	}
 }
+*/
 
 
 void custom_strncmp(const char* str1, const char* str2, int max_len, int& result) {
@@ -334,6 +338,7 @@ void recursive_bucket_sort_index(
 	}
 }
 
+/*
 void construct_truncated_suffix_array(
 	const char* str,
 	uint32_t* suffix_array,
@@ -364,6 +369,7 @@ void construct_truncated_suffix_array(
 	);
 	free(temp_suffix_array);
 }
+*/
 
 void construct_suffix_array_index(
 	const char* str,
@@ -389,6 +395,7 @@ void construct_suffix_array_index(
 }
 
 
+/*
 int get_substring_positions(
     char* str,
     uint32_t* suffix_array,
@@ -430,23 +437,22 @@ int get_substring_positions(
         }
     }
 
-	/*
     // Adjusted to correctly iterate through start to end
-	for (int j = 0; j < 9; ++j) {
-		printf("SUBSTRING: ");
-		for (int i = 0; i < 25; ++i) {
-			if (str[suffix_array[start + j] + i] == '\n') {
-				break;
-			}
-			printf("%c", str[suffix_array[start + j] + i]);
-		}
-		printf("\n\n");
-	}
-	printf("Found %ld matches\n", end - start + 1);
-	*/
+	// for (int j = 0; j < 9; ++j) {
+		// printf("SUBSTRING: ");
+		// for (int i = 0; i < 25; ++i) {
+			// if (str[suffix_array[start + j] + i] == '\n') {
+				// break;
+			// }
+			// printf("%c", str[suffix_array[start + j] + i]);
+		// }
+		// printf("\n\n");
+	// }
+	// printf("Found %ld matches\n", end - start + 1);
 
     return end - start + 1;
 }
+*/
 
 
 int main() {
@@ -476,10 +482,32 @@ int main() {
 	uint32_t max_suffix_length = 32;
 
 	auto start = std::chrono::high_resolution_clock::now();
-	construct_truncated_suffix_array(buffer, suffix_array, n, max_suffix_length);
+	construct_truncated_suffix_array(
+			buffer, 
+			suffix_array, 
+			n, 
+			max_suffix_length,
+			false
+			);
 	// construct_suffix_array_index(buffer, suffix_array, n);
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed_truncated = end - start;
+
+	printf("Elapsed time construction truncated:  %f seconds\n\n\n\n", elapsed_truncated.count());
+	fflush(stdout);
+
+	const char* FILENAME = "/home/jdm365/SearchApp/data/companies_sorted.csv";
+
+	start = std::chrono::high_resolution_clock::now();
+	construct_truncated_suffix_array_from_csv(
+			FILENAME,
+			0, 
+			suffix_array, 
+			max_suffix_length
+			);
+	// construct_suffix_array_index(buffer, suffix_array, n);
+	end = std::chrono::high_resolution_clock::now();
+	elapsed_truncated = end - start;
 
 	printf("Elapsed time construction truncated:  %f seconds\n\n\n\n", elapsed_truncated.count());
 	fflush(stdout);
@@ -499,6 +527,7 @@ int main() {
 	std::chrono::duration<double> elapsed = end - start;
 	*/
 
+	/*
 	int* suffix_array2 = (int*)malloc(n * sizeof(int));
 	start = std::chrono::high_resolution_clock::now();
 	divsufsort(
@@ -512,6 +541,7 @@ int main() {
 	printf("Elapsed time construction truncated:  %f seconds\n", elapsed_truncated.count());
 	// printf("Elapsed time construction libsais:   %f seconds\n", elapsed.count());
 	printf("Elapsed time construction divsufsort: %f seconds\n", elapsed.count());
+	*/
 
 
 	/*
@@ -526,13 +556,13 @@ int main() {
 	printf("Num differences: %d/%lu\n", num_differeces, n);
 	*/
 
-	// const char* substr = "jake the snake";
+	// const char* substr = "JAKE THE SNAKE";
 	const char* substr = "NETFLIX";
-	// const char* substr = "the";
+	// const char* substr = "THE";
 
 	start = std::chrono::high_resolution_clock::now();
-	int count = get_substring_positions(buffer, suffix_array, n, substr);
-	printf("Substring found %d times\n", count);
+	std::pair<uint32_t, uint32_t> range = get_substring_positions(buffer, suffix_array, n, substr);
+	printf("Substring found %d times\n", range.second - range.first + 1);
 
 	end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::micro> elapsed_construction = end - start;
