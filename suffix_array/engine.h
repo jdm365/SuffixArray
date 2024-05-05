@@ -29,10 +29,19 @@ void construct_truncated_suffix_array(
 	bool use_index_array
 );
 
+void _construct_truncated_suffix_array_from_csv(
+	const char* csv_file,
+	uint32_t column_idx,
+	uint32_t** suffix_array,
+	uint32_t* suffix_array_size,
+	uint32_t max_suffix_length
+);
+
 void construct_truncated_suffix_array_from_csv(
 	const char* csv_file,
 	uint32_t column_idx,
-	uint32_t* suffix_array,
+	std::vector<uint32_t>& suffix_array,
+	uint32_t* suffix_array_size,
 	uint32_t max_suffix_length
 );
 
@@ -43,9 +52,15 @@ void _construct_truncated_suffix_array_preset(
 	uint32_t max_suffix_length
 );
 
-// std::vector<uint32_t> get_substring_positions(
 std::pair<uint32_t, uint32_t> get_substring_positions(
     const char* str,
+    uint32_t* suffix_array,
+    uint64_t n,
+    const char* substring
+);
+
+std::pair<uint32_t, uint32_t> get_substring_positions_file(
+    FILE* file,
     uint32_t* suffix_array,
     uint64_t n,
     const char* substring
@@ -62,6 +77,14 @@ std::vector<uint32_t> get_matching_indices(
 
 std::vector<uint32_t> get_matching_indices_no_idxs(
 	const char* str,
+	uint32_t* suffix_array,
+	uint64_t n,
+	const char* substring,
+	int k 
+);
+
+std::vector<std::string> get_matching_records(
+	const char* filename,
 	uint32_t* suffix_array,
 	uint64_t n,
 	const char* substring,

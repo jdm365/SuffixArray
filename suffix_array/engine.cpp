@@ -15,10 +15,19 @@
 #include "engine.h"
 
 
-void construct_truncated_suffix_array_from_csv(
+inline uint32_t min(uint32_t a, uint32_t b) {
+	return a < b ? a : b;
+}
+
+inline uint32_t max(uint32_t a, uint32_t b) {
+	return a > b ? a : b;
+}
+
+void _construct_truncated_suffix_array_from_csv(
 	const char* csv_file,
 	uint32_t column_idx,
-	uint32_t* suffix_array,
+	uint32_t** suffix_array,
+	uint32_t* suffix_array_size,
 	uint32_t max_suffix_length
 ) {
 	auto start = std::chrono::high_resolution_clock::now();
@@ -34,7 +43,6 @@ void construct_truncated_suffix_array_from_csv(
 	size_t   len = 0;
 	ssize_t  read;
 	uint64_t file_pos = 0;
-	uint64_t suffix_array_size = 0;
 
 	uint64_t line_0_size = getline(&line, &len, file);
 	rewind(file);
@@ -46,7 +54,8 @@ void construct_truncated_suffix_array_from_csv(
 	std::vector<char> text;
 	text.reserve(num_lines * max_suffix_length);
 
-	suffix_array = (uint32_t*)malloc(num_lines * max_suffix_length * sizeof(uint32_t));
+	std::vector<uint32_t> suffix_array_mapping;
+	suffix_array_mapping.reserve(num_lines * max_suffix_length);
 
 	while ((read = getline(&line, &len, file)) != -1) {
 		uint32_t char_idx = 0;
@@ -60,31 +69,125 @@ void construct_truncated_suffix_array_from_csv(
 		}
 
 		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
-			text.push_back(line[char_idx]);
-			suffix_array[suffix_array_size++] = file_pos + char_idx;
+			// text.push_back(line[char_idx]);
+			text.push_back(tolower(line[char_idx]));
+			suffix_array_mapping.push_back(file_pos + char_idx);
 			++char_idx;
 		}
 
 		text.push_back('\n');
-		suffix_array[suffix_array_size++] = file_pos + char_idx;
+		suffix_array_mapping.push_back(file_pos + char_idx);
 
 		file_pos += read;
 	}
+
+	fclose(file);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;
 	printf("Time to read and parse CSV: %f\n", elapsed.count());
 
-	suffix_array = (uint32_t*)realloc(suffix_array, suffix_array_size * sizeof(uint32_t));
+	*suffix_array_size = text.size();
+	*suffix_array = (uint32_t*)malloc(*suffix_array_size * sizeof(uint32_t));
 
-	_construct_truncated_suffix_array_preset(
+	// _construct_truncated_suffix_array_preset(
+	construct_truncated_suffix_array(
 		text.data(),
-		suffix_array,
-		suffix_array_size,
-		max_suffix_length
+		*suffix_array,
+		*suffix_array_size,
+		max_suffix_length,
+		false
 	);
 
+	// Remap suffix array indices to original file positions.
+	for (uint32_t i = 0; i < *suffix_array_size; ++i) {
+		(*suffix_array)[i] = suffix_array_mapping[(*suffix_array)[i]];
+	}
+
+	free(line);
+}
+
+
+void construct_truncated_suffix_array_from_csv(
+	const char* csv_file,
+	uint32_t column_idx,
+	std::vector<uint32_t>& suffix_array,
+	uint32_t* suffix_array_size,
+	uint32_t max_suffix_length
+) {
+	auto start = std::chrono::high_resolution_clock::now();
+
+	// Read and parse the CSV file.
+	FILE* file = fopen(csv_file, "r");
+	if (file == NULL) {
+		printf("Error: File not found\n");
+		exit(1);
+	}
+
+	char*    line = NULL;
+	size_t   len = 0;
+	ssize_t  read;
+	uint64_t file_pos = 0;
+
+	uint64_t line_0_size = getline(&line, &len, file);
+	rewind(file);
+
+	fseek(file, 0, SEEK_END);
+	uint64_t num_lines = ftell(file) / line_0_size;
+	rewind(file);
+
+	std::vector<char> text;
+	text.reserve(num_lines * max_suffix_length);
+
+	std::vector<uint32_t> suffix_array_mapping;
+	suffix_array_mapping.reserve(num_lines * max_suffix_length);
+
+	while ((read = getline(&line, &len, file)) != -1) {
+		uint32_t char_idx = 0;
+		uint32_t col_idx  = 0;
+
+		while (col_idx < column_idx) {
+			if (line[char_idx] == ',') {
+				++col_idx;
+			}
+			++char_idx;
+		}
+
+		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
+			// text.push_back(line[char_idx]);
+			text.push_back(tolower(line[char_idx]));
+			suffix_array_mapping.push_back(file_pos + char_idx);
+			++char_idx;
+		}
+
+		text.push_back('\n');
+		suffix_array_mapping.push_back(file_pos + char_idx);
+
+		file_pos += read;
+	}
+
 	fclose(file);
+
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = end - start;
+	printf("Time to read and parse CSV: %f\n", elapsed.count());
+
+	*suffix_array_size = text.size();
+	suffix_array.resize(*suffix_array_size);
+
+	// _construct_truncated_suffix_array_preset(
+	construct_truncated_suffix_array(
+		text.data(),
+		suffix_array.data(),
+		*suffix_array_size,
+		max_suffix_length,
+		false
+	);
+
+	// Remap suffix array indices to original file positions.
+	for (uint32_t i = 0; i < *suffix_array_size; ++i) {
+		suffix_array[i] = suffix_array_mapping[suffix_array[i]];
+	}
 }
 
 static inline int strncmp_128(const char* str1, const char* str2, uint64_t n) {
@@ -406,6 +509,69 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
 	return std::make_pair(start, end);
 }
 
+std::pair<uint32_t, uint32_t> get_substring_positions_file(
+	FILE* file,
+    uint32_t* suffix_array,
+    uint64_t n,
+    const char* substring
+) {
+    int64_t m = strlen(substring);
+    int64_t first = 0;
+    int64_t last = n - 1;
+    int64_t start = -1;
+	int64_t end = -1;
+
+	char* line = NULL;
+	line = (char*)malloc(32 * sizeof(char));
+
+    // Binary search for the first occurrence of the substring
+    while (first <= last) {
+        int64_t mid = (first + last) / 2;
+		fseek(file, suffix_array[mid], SEEK_SET);
+		fread(line, 1, 32, file);
+
+		for (int i = 0; i < 32; ++i) {
+			line[i] = tolower(line[i]);
+		}
+
+        if (strncmp(line, substring, m) < 0) {
+        // if (strncmp_128(str + suffix_array[mid], substring, m) < 0) {
+            first = mid + 1;
+        }
+        else {
+            last = mid - 1;
+            start = mid;
+        }
+    }
+
+    if (start == -1) {
+        return std::make_pair(-1, -1);
+    }
+
+    // Reset for searching the last occurrence
+    first = 0, last = n - 1;
+    while (first <= last) {
+        int64_t mid = (first + last) / 2;
+		fseek(file, suffix_array[mid], SEEK_SET);
+		fread(line, 1, 32, file);
+
+		for (int i = 0; i < 32; ++i) {
+			line[i] = tolower(line[i]);
+		}
+
+        if (strncmp(line, substring, m) > 0) {
+        // if (strncmp_128(str + suffix_array[mid], substring, m) > 0) {
+            last = mid - 1;
+        }
+        else {
+            first = mid + 1;
+            end = mid;
+        }
+    }
+
+	return std::make_pair(start, end);
+}
+
 std::vector<uint32_t> get_matching_indices(
 	const char* str,
 	uint32_t* suffix_array,
@@ -477,4 +643,68 @@ std::vector<uint32_t> get_matching_indices_no_idxs(
 		}
 	}
 	return matches;
+}
+
+std::vector<std::string> get_matching_records(
+	const char* filename,
+	uint32_t* suffix_array,
+	uint64_t n,
+	const char* substring,
+	int k 
+) {
+	FILE* file = fopen(filename, "r");
+
+	printf("Substring: %s\n", substring);
+	std::pair<uint32_t, uint32_t> match_idxs = get_substring_positions_file(
+			file,
+			suffix_array, 
+			n, 
+			substring
+			);
+	printf("Match idxs: %d %d\n", match_idxs.first, match_idxs.second);
+
+	if ((int)match_idxs.first == -1) {
+		return std::vector<std::string>();
+	}
+
+	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
+	printf("Num matches: %lu\n", num_matches);
+
+	std::vector<std::string> records;
+	records.reserve(num_matches);
+
+	robin_hood::unordered_flat_set<uint32_t> match_set;
+
+	char line[1024];
+
+	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
+		// Go to the original index and iterate backwards until newline.
+		uint32_t offset = suffix_array[i];
+		uint32_t newline_pos = 0;
+
+		fseek(file, max(offset - 512, 0), SEEK_SET);
+		fread(line, 1, 1024, file);
+
+		for (uint32_t j = 0; j < 512; ++j) {
+			if (line[j] == '\n') {
+				newline_pos = j;
+			}
+		}
+		offset = offset - 512 + newline_pos + 1;
+
+		fseek(file, offset, SEEK_SET);
+		std::string record;
+		while (true) {
+			char c = fgetc(file);
+			if (c == '\n') {
+				break;
+			}
+			record.push_back(c);
+		}
+
+		records.push_back(record);
+	}
+	fclose(file);
+
+	return records;
 }

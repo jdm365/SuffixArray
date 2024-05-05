@@ -8,6 +8,9 @@
 #include <stdbool.h>
 #include <omp.h>
 
+#include <iostream>
+#include <string>
+
 // #include "divsufsort.h"
 #include "engine.h"
 
@@ -502,10 +505,12 @@ int main() {
 
 	auto start = std::chrono::high_resolution_clock::now();
 	// start = std::chrono::high_resolution_clock::now();
-	construct_truncated_suffix_array_from_csv(
+	uint32_t suffix_array_size;
+	_construct_truncated_suffix_array_from_csv(
 			FILENAME,
 			0, 
-			suffix_array, 
+			&suffix_array, 
+			&suffix_array_size,
 			max_suffix_length
 			);
 	// construct_suffix_array_index(buffer, suffix_array, n);
@@ -562,8 +567,9 @@ int main() {
 	*/
 
 	// const char* substr = "JAKE THE SNAKE";
-	const char* substr = "NETFLIX";
+	const char* substr = "netflix";
 	// const char* substr = "THE";
+	/*
 	FILE* file = fopen(FILENAME, "r");
 	if (file == NULL) {
 		printf("Error: File not found\n");
@@ -587,6 +593,19 @@ int main() {
 		}
 		printf("\n");
 		fflush(stdout);
+	}
+	*/
+	start = std::chrono::high_resolution_clock::now();
+
+	std::vector<std::string> records = get_matching_records(
+			FILENAME,
+			suffix_array, 
+			(uint64_t)suffix_array_size,
+			substr, 
+			10
+			);
+	for (uint32_t i = 0; i < records.size(); ++i) {
+		std::cout << records[i] << std::endl;
 	}
 
 	end = std::chrono::high_resolution_clock::now();

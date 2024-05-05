@@ -45,13 +45,28 @@ cdef extern from "engine.h":
     void construct_truncated_suffix_array_from_csv(
         const char* csv_file,
         uint32_t column_idx,
+        vector[uint32_t]& suffix_array,
+        uint32_t* suffix_array_size,
+        uint32_t max_suffix_length
+    ) nogil
+    void _construct_truncated_suffix_array_from_csv(
+        const char* csv_file,
+        uint32_t column_idx,
         uint32_t* suffix_array,
+        uint32_t* suffix_array_size,
         uint32_t max_suffix_length
     ) nogil
     vector[uint32_t] get_matching_indices(
         const char* text,
         uint32_t* suffix_array,
         uint32_t* suffix_array_idxs,
+        uint32_t text_length,
+        const char* substring,
+        int k
+    )
+    vector[string] get_matching_records(
+        const char* filename,
+        uint32_t* suffix_array,
         uint32_t text_length,
         const char* substring,
         int k
@@ -70,7 +85,7 @@ cdef class SuffixArray:
     cdef vector[uint32_t] suffix_array
     cdef vector[uint32_t] suffix_array_idxs
     cdef uint32_t max_suffix_length
-    cdef uint64_t text_length
+    cdef uint32_t text_length
     cdef uint32_t num_rows
     cdef int num_threads
     cdef str csv_file
@@ -78,6 +93,8 @@ cdef class SuffixArray:
     cdef uint32_t column_idx 
     cdef str save_dir
     cdef bool use_index_array
+    cdef bool from_csv
+    cdef list columns
 
     def __init__(
             self, 
@@ -103,6 +120,8 @@ cdef class SuffixArray:
             except:
                 raise ValueError("Documents must be a list of strings")
 
+        self.from_csv = False
+
         if len(documents) > 0:
             self.construct_truncated_suffix_array(documents)
             self.num_rows = len(documents)
@@ -117,9 +136,13 @@ cdef class SuffixArray:
                 if self.search_column not in header:
                     raise ValueError(f"Column {self.search_column} not found in CSV file")
 
+                self.columns = header
                 self.column_idx = header.index(self.search_column)
 
+            self.from_csv = True
             self.construct_truncated_suffix_array_from_csv()
+
+
 
 
     def save(self, save_dir: str):
@@ -249,19 +272,22 @@ cdef class SuffixArray:
             )
         print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
 
+
     cpdef void construct_truncated_suffix_array_from_csv(self):
 
         init = perf_counter()
-        print("...Constructing suffix array...")
+        print("...Constructing suffix array from csv...")
         cdef string filename = self.csv_file.encode('utf-8')
         with nogil:
             construct_truncated_suffix_array_from_csv(
                 filename.c_str(),
                 self.column_idx,
-                self.suffix_array.data(),
+                self.suffix_array,
+                &self.text_length,
                 self.max_suffix_length
             )
         print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
+        print(f"Text length: {self.text_length}")
 
 
     def query(self, substring: str, k: int = 1000):
@@ -277,3 +303,16 @@ cdef class SuffixArray:
             dtype=np.uint32
         )
         return positions
+
+    def query_records(self, substring: str, k: int = 1000):
+        cdef vector[string] _records = get_matching_records(
+            self.csv_file.encode('utf-8'),
+            self.suffix_array.data(),
+            self.text_length,
+            substring.lower().encode('utf-8'),
+            k
+        )
+
+        records = [x.decode('utf-8').split(',') for x in _records]
+        records = [dict(zip(self.columns, x)) for x in records]
+        return records
