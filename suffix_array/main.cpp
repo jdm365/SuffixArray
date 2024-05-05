@@ -481,6 +481,7 @@ int main() {
 
 	uint32_t max_suffix_length = 32;
 
+	/*
 	auto start = std::chrono::high_resolution_clock::now();
 	construct_truncated_suffix_array(
 			buffer, 
@@ -495,10 +496,12 @@ int main() {
 
 	printf("Elapsed time construction truncated:  %f seconds\n\n\n\n", elapsed_truncated.count());
 	fflush(stdout);
+	*/
 
 	const char* FILENAME = "/home/jdm365/SearchApp/data/companies_sorted.csv";
 
-	start = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
+	// start = std::chrono::high_resolution_clock::now();
 	construct_truncated_suffix_array_from_csv(
 			FILENAME,
 			0, 
@@ -506,8 +509,10 @@ int main() {
 			max_suffix_length
 			);
 	// construct_suffix_array_index(buffer, suffix_array, n);
-	end = std::chrono::high_resolution_clock::now();
-	elapsed_truncated = end - start;
+	auto end = std::chrono::high_resolution_clock::now();
+	// end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed_truncated = end - start;
+	// elapsed_truncated = end - start;
 
 	printf("Elapsed time construction truncated:  %f seconds\n\n\n\n", elapsed_truncated.count());
 	fflush(stdout);
@@ -559,10 +564,30 @@ int main() {
 	// const char* substr = "JAKE THE SNAKE";
 	const char* substr = "NETFLIX";
 	// const char* substr = "THE";
+	FILE* file = fopen(FILENAME, "r");
+	if (file == NULL) {
+		printf("Error: File not found\n");
+		exit(1);
+	}
+	char* buffer2 = NULL;
+	uint64_t buffer_size2;
+	read_text_into_buffer(FILENAME, &buffer2, &buffer_size2);
+	n = buffer_size2;
 
 	start = std::chrono::high_resolution_clock::now();
-	std::pair<uint32_t, uint32_t> range = get_substring_positions(buffer, suffix_array, n, substr);
-	printf("Substring found %d times\n", range.second - range.first + 1);
+	// std::pair<uint32_t, uint32_t> range = get_substring_positions(buffer, suffix_array, n, substr);
+	std::vector<uint32_t> idxs = get_matching_indices_no_idxs(buffer2, suffix_array, n, substr, 10);
+	for (uint32_t i = 0; i < idxs.size(); ++i) {
+		printf("Substring found at index %u: ", idxs[i]);
+		for (uint32_t j = 0; j < 250; ++j) {
+			if (buffer2[idxs[i] + j] == '\n') {
+				break;
+			}
+			printf("%c", buffer2[idxs[i] + j]);
+		}
+		printf("\n");
+		fflush(stdout);
+	}
 
 	end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::micro> elapsed_construction = end - start;

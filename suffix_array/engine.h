@@ -59,3 +59,11 @@ std::vector<uint32_t> get_matching_indices(
 	const char* substring,
 	int k 
 );
+
+std::vector<uint32_t> get_matching_indices_no_idxs(
+	const char* str,
+	uint32_t* suffix_array,
+	uint64_t n,
+	const char* substring,
+	int k 
+);

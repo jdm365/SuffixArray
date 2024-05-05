@@ -453,11 +453,13 @@ std::vector<uint32_t> get_matching_indices_no_idxs(
 			n, 
 			substring
 			);
+
 	if ((int)match_idxs.first == -1) {
 		return std::vector<uint32_t>();
 	}
 
 	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
+	printf("Num matches: %lu\n", num_matches);
 
 	std::vector<uint32_t> matches;
 	matches.reserve(num_matches);
