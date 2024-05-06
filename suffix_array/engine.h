@@ -23,23 +23,6 @@ void construct_truncated_suffix_array(
 	const char* str,
 	uint32_t* suffix_array,
 	uint64_t n,
-	uint32_t max_suffix_length,
-	bool use_index_array
-);
-
-void _construct_truncated_suffix_array_from_csv(
-	const char* csv_file,
-	uint32_t column_idx,
-	uint32_t** suffix_array,
-	uint32_t* suffix_array_size,
-	uint32_t max_suffix_length
-);
-
-void construct_truncated_suffix_array_from_csv(
-	const char* csv_file,
-	uint32_t column_idx,
-	std::vector<uint32_t>& suffix_array,
-	uint32_t* suffix_array_size,
 	uint32_t max_suffix_length
 );
 
@@ -51,13 +34,6 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	uint32_t max_suffix_length,
 	uint64_t start_idx,
 	uint64_t& end_idx
-);
-
-void _construct_truncated_suffix_array_preset(
-	const char* str,
-	uint32_t* suffix_array,
-	uint64_t n,
-	uint32_t max_suffix_length
 );
 
 std::pair<uint32_t, uint32_t> get_substring_positions(

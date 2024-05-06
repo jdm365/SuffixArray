@@ -480,7 +480,8 @@ int main() {
 	*/
 
 	uint64_t n = buffer_size;
-	alignas(64) uint32_t* suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
+	// alignas(64) uint32_t* suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
+	alignas(64) std::vector<uint32_t> suffix_array(n);
 
 	uint32_t max_suffix_length = 32;
 
@@ -506,10 +507,10 @@ int main() {
 	auto start = std::chrono::high_resolution_clock::now();
 	// start = std::chrono::high_resolution_clock::now();
 	uint32_t suffix_array_size;
-	_construct_truncated_suffix_array_from_csv(
+	construct_truncated_suffix_array_from_csv(
 			FILENAME,
-			0, 
-			&suffix_array, 
+			0,
+			suffix_array, 
 			&suffix_array_size,
 			max_suffix_length
 			);
@@ -599,7 +600,7 @@ int main() {
 
 	std::vector<std::string> records = get_matching_records(
 			FILENAME,
-			suffix_array, 
+			suffix_array.data(), 
 			(uint64_t)suffix_array_size,
 			0,
 			substr, 
@@ -615,7 +616,6 @@ int main() {
 	printf("Elapsed time query: 	   %f microseconds\n", elapsed_construction.count());
 
 	free(buffer);
-	free(suffix_array);
 
 	return 0;
 }

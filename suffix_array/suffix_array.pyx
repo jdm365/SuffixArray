@@ -39,16 +39,8 @@ from time import perf_counter
 cdef extern from "engine.h":
     void construct_truncated_suffix_array(
         const char* text,
-        uint32_t* suffix_array,
-        uint32_t text_length,
-        uint32_t max_suffix_length,
-        bool use_index_array
-    ) nogil
-    void construct_truncated_suffix_array_from_csv(
-        const char* csv_file,
-        uint32_t column_idx,
         vector[uint32_t]& suffix_array,
-        uint32_t* suffix_array_size,
+        uint32_t text_length,
         uint32_t max_suffix_length
     ) nogil
     void construct_truncated_suffix_array_from_csv_partitioned(
@@ -88,17 +80,14 @@ cdef void lowercase_string(string& s) nogil:
 cdef class SuffixArray:
     cdef string text
     cdef vector[vector[uint32_t]] suffix_arrays
-    ## cdef vector[uint32_t] suffix_array
-    cdef vector[vector[uint32_t]] suffix_arrays_idxs
-    cdef uint32_t max_suffix_length
     cdef vector[uint32_t] text_lengths
     cdef uint32_t num_rows
+    cdef uint32_t max_suffix_length
     cdef int num_threads
     cdef str csv_file
     cdef str search_column
     cdef uint32_t column_idx 
     cdef str save_dir
-    cdef bool use_index_array
     cdef bool from_csv
     cdef list columns
     cdef int  num_partitions
@@ -111,15 +100,11 @@ cdef class SuffixArray:
             search_column: str = '',
             documents: List[str] = [],
             max_suffix_length: int = 64,
-            load_dir: str = '',
-            use_index_array: bool = False,
-            num_partitions: int = -1
+            load_dir: str = ''
             ):
-        self.max_suffix_length = <uint32_t>max_suffix_length
-        self.use_index_array   = use_index_array
+        self.max_suffix_length = max_suffix_length
         self.csv_file          = csv_file
         self.search_column     = search_column
-        self.num_partitions    = num_partitions
 
         if load_dir != '':
             self.load(load_dir)
