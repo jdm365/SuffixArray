@@ -29,6 +29,7 @@ cimport numpy as np
 import numpy as np
 from tqdm import tqdm
 import os
+import csv
 from typing import List
 np.import_array()
 
@@ -275,7 +276,10 @@ cdef class SuffixArray:
                 k
             )
 
-            records = [x.decode('utf-8').split(',') for x in _records]
+            ## records = [x.decode('utf-8').split(',') for x in _records]
+            records = [x.decode('utf-8') for x in _records]
+            reader = csv.reader(records, delimiter=',')
+            records = [x for x in reader]
             records = [dict(zip(self.columns, x)) for x in records]
 
             all_records.extend(records)

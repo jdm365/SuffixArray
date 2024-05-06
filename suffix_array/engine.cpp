@@ -147,6 +147,16 @@ void construct_truncated_suffix_array_from_csv(
 		uint32_t col_idx  = 0;
 
 		while (col_idx < column_idx) {
+			if (line[char_idx] == '\\') {
+				char_idx += 2;
+				continue;
+			}
+			if (line[char_idx] == '"') {
+				++char_idx;
+				while (line[char_idx] != '"') {
+					++char_idx;
+				}
+			}
 			if (line[char_idx] == ',') {
 				++col_idx;
 			}
@@ -154,6 +164,13 @@ void construct_truncated_suffix_array_from_csv(
 		}
 
 		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
+			if (line[char_idx] == '\\') {
+				++char_idx;
+				text.push_back(tolower(line[char_idx]));
+				suffix_array_mapping.push_back(file_pos + char_idx);
+				++char_idx;
+				continue;
+			}
 			// text.push_back(line[char_idx]);
 			text.push_back(tolower(line[char_idx]));
 			suffix_array_mapping.push_back(file_pos + char_idx);
@@ -185,6 +202,7 @@ void construct_truncated_suffix_array_from_csv(
 	);
 
 	// Remap suffix array indices to original file positions.
+	#pragma omp parallel for
 	for (uint32_t i = 0; i < *suffix_array_size; ++i) {
 		suffix_array[i] = suffix_array_mapping[suffix_array[i]];
 	}
@@ -242,6 +260,17 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 		uint32_t col_idx  = 0;
 
 		while (col_idx < column_idx) {
+			if (line[char_idx] == '\\') {
+				char_idx += 2;
+				continue;
+			}
+			if (line[char_idx] == '"') {
+				++char_idx;
+				while (line[char_idx] != '"') {
+					++char_idx;
+				}
+				++char_idx;
+			}
 			if (line[char_idx] == ',') {
 				++col_idx;
 			}
@@ -249,6 +278,24 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 		}
 
 		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
+			if (line[char_idx] == '\\') {
+				++char_idx;
+				text.push_back(tolower(line[char_idx]));
+				suffix_array_mapping.push_back(file_pos + char_idx);
+				++char_idx;
+				continue;
+			}
+			if (line[char_idx] == '"') {
+				++char_idx;
+				while (line[char_idx] != '"') {
+					text.push_back(tolower(line[char_idx]));
+					suffix_array_mapping.push_back(file_pos + char_idx);
+					++char_idx;
+				}
+				++char_idx;
+				continue;
+			}
+
 			text.push_back(tolower(line[char_idx]));
 			suffix_array_mapping.push_back(file_pos + char_idx);
 			++char_idx;
@@ -793,9 +840,12 @@ std::vector<std::string> get_matching_records(
 		offset = offset - 512 + newline_pos + 1;
 
 		fseek(file, offset, SEEK_SET);
+		fread(line, 1, 1024, file);
+
 		std::string record;
+		uint32_t char_idx = 0;
 		while (true) {
-			char c = fgetc(file);
+			char c = line[char_idx++];
 			if (c == '\n') {
 				break;
 			}
