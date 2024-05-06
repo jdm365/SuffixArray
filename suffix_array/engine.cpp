@@ -833,6 +833,10 @@ std::vector<std::string> get_matching_records(
 		fread(line, 1, 1024, file);
 
 		for (uint32_t j = 0; j < 512; ++j) {
+			if (line[j] == '\\') {
+				j += 2;
+				continue;
+			}
 			if (line[j] == '\n') {
 				newline_pos = j;
 			}
