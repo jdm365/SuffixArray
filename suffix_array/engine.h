@@ -7,8 +7,6 @@ void recursive_bucket_sort(
 	const char* str,
 	uint32_t* suffix_array,
 	uint32_t* temp_suffix_array,
-	// uint32_t* buckets,
-	// uint32_t* bucket_starts,
 	int string_length,
 	uint64_t n,
 	int max_depth,
@@ -45,6 +43,16 @@ void construct_truncated_suffix_array_from_csv(
 	uint32_t max_suffix_length
 );
 
+void construct_truncated_suffix_array_from_csv_partitioned(
+	const char* csv_file,
+	uint32_t column_idx,
+	std::vector<uint32_t>& suffix_array,
+	uint32_t* suffix_array_size,
+	uint32_t max_suffix_length,
+	uint64_t start_idx,
+	uint64_t& end_idx
+);
+
 void _construct_truncated_suffix_array_preset(
 	const char* str,
 	uint32_t* suffix_array,
@@ -61,8 +69,9 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
 
 std::pair<uint32_t, uint32_t> get_substring_positions_file(
     FILE* file,
+	uint64_t byte_offset,
     uint32_t* suffix_array,
-    uint64_t n,
+    uint32_t n,
     const char* substring
 );
 
@@ -86,7 +95,8 @@ std::vector<uint32_t> get_matching_indices_no_idxs(
 std::vector<std::string> get_matching_records(
 	const char* filename,
 	uint32_t* suffix_array,
-	uint64_t n,
+	uint32_t n,
+	uint64_t byte_offset,
 	const char* substring,
 	int k 
 );

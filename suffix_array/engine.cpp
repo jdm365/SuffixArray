@@ -190,6 +190,102 @@ void construct_truncated_suffix_array_from_csv(
 	}
 }
 
+
+void construct_truncated_suffix_array_from_csv_partitioned(
+	const char* csv_file,
+	uint32_t column_idx,
+	std::vector<uint32_t>& suffix_array,
+	uint32_t* suffix_array_size,
+	uint32_t max_suffix_length,
+	uint64_t start_idx,
+	uint64_t& end_idx
+) {
+	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
+
+	auto start = std::chrono::high_resolution_clock::now();
+
+	// Read and parse the CSV file.
+	FILE* file = fopen(csv_file, "r");
+	if (file == NULL) {
+		printf("Error: File not found\n");
+		exit(1);
+	}
+
+	char*    line = NULL;
+	uint64_t len = 0;
+	ssize_t  read;
+	uint64_t file_pos = 0;
+	uint64_t bytes_read = 0;
+
+	uint64_t line_0_size = getline(&line, &len, file);
+
+	uint64_t num_lines = TWO_GB / line_0_size;
+	fseek(file, start_idx, SEEK_SET);
+
+	printf("Num lines: %lu\n", num_lines);
+	fflush(stdout);
+
+	std::vector<char> text;
+	text.reserve(num_lines * max_suffix_length);
+
+	std::vector<uint32_t> suffix_array_mapping;
+	suffix_array_mapping.reserve(num_lines * max_suffix_length);
+
+	while (
+			((read = getline(&line, &len, file)) != -1)
+				&& 
+			(bytes_read < TWO_GB)
+			) {
+		bytes_read += read;
+
+		uint32_t char_idx = 0;
+		uint32_t col_idx  = 0;
+
+		while (col_idx < column_idx) {
+			if (line[char_idx] == ',') {
+				++col_idx;
+			}
+			++char_idx;
+		}
+
+		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
+			text.push_back(tolower(line[char_idx]));
+			suffix_array_mapping.push_back(file_pos + char_idx);
+			++char_idx;
+		}
+
+		text.push_back('\n');
+		suffix_array_mapping.push_back(file_pos + char_idx);
+
+		file_pos += read;
+	}
+
+	fclose(file);
+
+	end_idx = file_pos;
+
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = end - start;
+	printf("Time to read and parse CSV: %f\n", elapsed.count());
+
+	*suffix_array_size = text.size();
+	suffix_array.resize(*suffix_array_size);
+
+	// _construct_truncated_suffix_array_preset(
+	construct_truncated_suffix_array(
+		text.data(),
+		suffix_array.data(),
+		*suffix_array_size,
+		max_suffix_length,
+		false
+	);
+
+	// Remap suffix array indices to original file positions.
+	for (uint32_t i = 0; i < *suffix_array_size; ++i) {
+		suffix_array[i] = suffix_array_mapping[suffix_array[i]];
+	}
+}
+
 static inline int strncmp_128(const char* str1, const char* str2, uint64_t n) {
     // Load the strings into __m128i registers
     __m128i v1 = _mm_loadu_si128((__m128i*)str1);
@@ -511,8 +607,9 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
 
 std::pair<uint32_t, uint32_t> get_substring_positions_file(
 	FILE* file,
+    uint64_t byte_offset,
     uint32_t* suffix_array,
-    uint64_t n,
+    uint32_t n,
     const char* substring
 ) {
     int64_t m = strlen(substring);
@@ -527,7 +624,7 @@ std::pair<uint32_t, uint32_t> get_substring_positions_file(
     // Binary search for the first occurrence of the substring
     while (first <= last) {
         int64_t mid = (first + last) / 2;
-		fseek(file, suffix_array[mid], SEEK_SET);
+		fseek(file, byte_offset + suffix_array[mid], SEEK_SET);
 		fread(line, 1, 32, file);
 
 		for (int i = 0; i < 32; ++i) {
@@ -552,7 +649,7 @@ std::pair<uint32_t, uint32_t> get_substring_positions_file(
     first = 0, last = n - 1;
     while (first <= last) {
         int64_t mid = (first + last) / 2;
-		fseek(file, suffix_array[mid], SEEK_SET);
+		fseek(file, byte_offset + suffix_array[mid], SEEK_SET);
 		fread(line, 1, 32, file);
 
 		for (int i = 0; i < 32; ++i) {
@@ -648,27 +745,30 @@ std::vector<uint32_t> get_matching_indices_no_idxs(
 std::vector<std::string> get_matching_records(
 	const char* filename,
 	uint32_t* suffix_array,
-	uint64_t n,
+	uint32_t n,
+	uint64_t byte_offset,
 	const char* substring,
 	int k 
 ) {
 	FILE* file = fopen(filename, "r");
+	if (file == NULL) {
+		printf("Error: File not found\n");
+		exit(1);
+	}
 
-	printf("Substring: %s\n", substring);
 	std::pair<uint32_t, uint32_t> match_idxs = get_substring_positions_file(
 			file,
+			byte_offset,
 			suffix_array, 
 			n, 
 			substring
 			);
-	printf("Match idxs: %d %d\n", match_idxs.first, match_idxs.second);
 
 	if ((int)match_idxs.first == -1) {
 		return std::vector<std::string>();
 	}
 
 	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
-	printf("Num matches: %lu\n", num_matches);
 
 	std::vector<std::string> records;
 	records.reserve(num_matches);

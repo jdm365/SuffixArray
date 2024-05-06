@@ -3,6 +3,7 @@
 cimport cython
 
 from libc.stdint cimport uint32_t, uint64_t
+from libc.stdio cimport printf
 from cython.parallel cimport prange
 from libc.stdlib cimport malloc, free
 from libc.stdio cimport (
@@ -49,6 +50,15 @@ cdef extern from "engine.h":
         uint32_t* suffix_array_size,
         uint32_t max_suffix_length
     ) nogil
+    void construct_truncated_suffix_array_from_csv_partitioned(
+        const char* csv_file,
+        uint32_t column_idx,
+        vector[uint32_t]& suffix_array,
+        uint32_t* suffix_array_size,
+        uint32_t max_suffix_length,
+        uint64_t start_idx,
+        uint64_t& end_idx
+    ) nogil
     vector[uint32_t] get_matching_indices(
         const char* text,
         uint32_t* suffix_array,
@@ -61,6 +71,7 @@ cdef extern from "engine.h":
         const char* filename,
         uint32_t* suffix_array,
         uint32_t text_length,
+        uint64_t start_idx,
         const char* substring,
         int k
     )
@@ -75,10 +86,11 @@ cdef void lowercase_string(string& s) nogil:
 
 cdef class SuffixArray:
     cdef string text
-    cdef vector[uint32_t] suffix_array
-    cdef vector[uint32_t] suffix_array_idxs
+    cdef vector[vector[uint32_t]] suffix_arrays
+    ## cdef vector[uint32_t] suffix_array
+    cdef vector[vector[uint32_t]] suffix_arrays_idxs
     cdef uint32_t max_suffix_length
-    cdef uint32_t text_length
+    cdef vector[uint32_t] text_lengths
     cdef uint32_t num_rows
     cdef int num_threads
     cdef str csv_file
@@ -88,6 +100,9 @@ cdef class SuffixArray:
     cdef bool use_index_array
     cdef bool from_csv
     cdef list columns
+    cdef int  num_partitions
+    cdef vector[uint64_t] partition_byte_boundaries
+
 
     def __init__(
             self, 
@@ -96,12 +111,14 @@ cdef class SuffixArray:
             documents: List[str] = [],
             max_suffix_length: int = 64,
             load_dir: str = '',
-            use_index_array: bool = False
+            use_index_array: bool = False,
+            num_partitions: int = -1
             ):
         self.max_suffix_length = <uint32_t>max_suffix_length
         self.use_index_array   = use_index_array
         self.csv_file          = csv_file
         self.search_column     = search_column
+        self.num_partitions    = num_partitions
 
         if load_dir != '':
             self.load(load_dir)
@@ -116,9 +133,14 @@ cdef class SuffixArray:
         self.from_csv = False
 
         if len(documents) > 0:
-            self.construct_truncated_suffix_array_documents(documents)
             self.num_rows = len(documents)
+            self.num_partitions = 1
+            self.partition_byte_boundaries.push_back(0)
+
+            self.construct_truncated_suffix_array_documents(documents)
         else:
+            self.from_csv = True
+
             if not self.csv_file.endswith('.csv'):
                 raise ValueError("Invalid file format. Must be a CSV file")
 
@@ -132,11 +154,22 @@ cdef class SuffixArray:
                 self.columns = header
                 self.column_idx = header.index(self.search_column)
 
-            self.from_csv = True
+            if self.num_partitions == -1:
+                filesize = os.path.getsize(self.csv_file)
+                two_gb = 2 * 1024 * 1024 * 1024
+
+                self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
+
+            self.suffix_arrays.resize(self.num_partitions)
+            self.text_lengths.resize(self.num_partitions)
+            self.partition_byte_boundaries.resize(self.num_partitions)
+            self.partition_byte_boundaries[0] = 0
+
             self.construct_truncated_suffix_array_from_csv()
 
 
 
+    '''
     cpdef void construct_truncated_suffix_array_documents(self, list documents):
         ## Convert text to a single string with 
         ## newline separators and get row offsets
@@ -156,7 +189,7 @@ cdef class SuffixArray:
         self.text_length = <uint64_t>len(self.text)
 
         ## Get the suffix array indices
-        self.suffix_array_idxs.resize(self.text_length)
+        self.suffix_arrays_idxs.resize(self.text_length)
         cdef int i, j
         cdef int n = self.num_rows
         with nogil:
@@ -166,7 +199,7 @@ cdef class SuffixArray:
 
         self.suffix_array_idxs[row_offsets[n-1]] = self.num_rows - 1
 
-        self.suffix_array.resize(self.text_length)
+        self.suffix_arrays[0].resize(self.text_length)
         print(f"Text preprocessed in {perf_counter() - init:.2f} seconds")
 
         init = perf_counter()
@@ -174,59 +207,88 @@ cdef class SuffixArray:
         with nogil:
             construct_truncated_suffix_array(
                 self.text.c_str(),
-                self.suffix_array.data(),
+                self.suffix_arrays[0].data(),
                 self.text_length,
                 self.max_suffix_length,
                 True
             )
         print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
+    '''
 
 
-    cpdef void construct_truncated_suffix_array_from_csv(self):
+    cdef void construct_truncated_suffix_array_from_csv(self):
 
         init = perf_counter()
         print("...Constructing suffix array from csv...")
+
         cdef string filename = self.csv_file.encode('utf-8')
+        cdef int i
+
         with nogil:
-            construct_truncated_suffix_array_from_csv(
-                filename.c_str(),
-                self.column_idx,
-                self.suffix_array,
-                &self.text_length,
-                self.max_suffix_length
-            )
+            for i in range(self.num_partitions):
+                printf("Byte boundary: %lu\n", self.partition_byte_boundaries[i])
+                construct_truncated_suffix_array_from_csv_partitioned(
+                    filename.c_str(),
+                    self.column_idx,
+                    self.suffix_arrays[i],
+                    &self.text_lengths[i],
+                    self.max_suffix_length,
+                    self.partition_byte_boundaries[i],
+                    self.partition_byte_boundaries[i + 1]
+                )
+
         print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
-        print(f"Text length: {self.text_length}")
 
 
+    '''
     def query_indices(self, substring: str, k: int = 1000):
-        cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
-            get_matching_indices(
-                self.text.c_str(),
-                self.suffix_array.data(),
-                self.suffix_array_idxs.data(),
-                self.text_length,
+        for i in range(self.num_partitions):
+
+            cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
+                get_matching_indices(
+                    self.text.c_str(),
+                    self.suffix_arrays[i].data(),
+                    self.suffix_array_idxs.data(),
+                    self.text_lengths[i],
+                    substring.lower().encode('utf-8'),
+                    k
+                    ),
+                dtype=np.uint32
+            )
+            positions += 
+        return positions
+    '''
+
+    cpdef list query_records(self, substring: str, k: int = 1000):
+        cdef list all_records = []
+        cdef list records
+        cdef vector[string] _records
+        cdef int i
+
+        for i in range(self.num_partitions):
+            _records = get_matching_records(
+                self.csv_file.encode('utf-8'),
+                self.suffix_arrays[i].data(),
+                self.text_lengths[i],
+                self.partition_byte_boundaries[i],
                 substring.lower().encode('utf-8'),
                 k
-                ),
-            dtype=np.uint32
-        )
-        return positions
+            )
 
-    def query_records(self, substring: str, k: int = 1000):
-        cdef vector[string] _records = get_matching_records(
-            self.csv_file.encode('utf-8'),
-            self.suffix_array.data(),
-            self.text_length,
-            substring.lower().encode('utf-8'),
-            k
-        )
+            records = [x.decode('utf-8').split(',') for x in _records]
+            records = [dict(zip(self.columns, x)) for x in records]
 
-        records = [x.decode('utf-8').split(',') for x in _records]
-        records = [dict(zip(self.columns, x)) for x in records]
-        return records
+            all_records.extend(records)
+
+            if len(all_records) >= k:
+                all_records = all_records[:k]
+                break
+
+        return all_records
 
 
+
+    '''
     def save(self, save_dir: str):
         if save_dir in {'suffix_array', 'tests', 'data'}:
             raise ValueError("Cannot save to reserved directory")
@@ -307,5 +369,4 @@ cdef class SuffixArray:
             self.text_length       = int(metadata[1].split(': ')[1])
             self.num_rows          = int(metadata[2].split(': ')[1])
             self.num_threads       = int(metadata[3].split(': ')[1])
-
-
+    '''
