@@ -1,3 +1,5 @@
 - make newline lookback in get_records equal to the max line length.
 - fix parsing.
 - assess feasibility of disk-based suffix-array storage.
+- rebuild documents constructor and index query function.
+- rebuild saving and loading functions.
