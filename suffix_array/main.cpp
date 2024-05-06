@@ -601,6 +601,7 @@ int main() {
 			FILENAME,
 			suffix_array, 
 			(uint64_t)suffix_array_size,
+			0,
 			substr, 
 			10
 			);

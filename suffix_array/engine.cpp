@@ -23,6 +23,63 @@ inline uint32_t max(uint32_t a, uint32_t b) {
 	return a > b ? a : b;
 }
 
+inline void parse_line(
+		const char* line,
+		std::vector<char>& text,
+		std::vector<uint32_t>& suffix_array_mapping,
+		uint64_t& file_pos,
+		uint32_t column_idx
+		) {
+	uint32_t char_idx = 0;
+	uint32_t col_idx  = 0;
+
+	while (col_idx < column_idx) {
+		if (line[char_idx] == '\\') {
+			char_idx += 2;
+			continue;
+		}
+		if (line[char_idx] == '"') {
+			++char_idx;
+			while (line[char_idx] != '"') {
+				++char_idx;
+			}
+			++char_idx;
+		}
+		if (line[char_idx] == ',') {
+			++col_idx;
+		}
+		++char_idx;
+	}
+
+	while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
+		if (line[char_idx] == '\\') {
+			++char_idx;
+			text.push_back(tolower(line[char_idx]));
+			suffix_array_mapping.push_back(file_pos + char_idx);
+			++char_idx;
+			continue;
+		}
+		if (line[char_idx] == '"') {
+			++char_idx;
+			while (line[char_idx] != '"') {
+				text.push_back(tolower(line[char_idx]));
+				suffix_array_mapping.push_back(file_pos + char_idx);
+				++char_idx;
+			}
+			++char_idx;
+			continue;
+		}
+
+		text.push_back(tolower(line[char_idx]));
+		suffix_array_mapping.push_back(file_pos + char_idx);
+		++char_idx;
+	}
+
+	text.push_back('\n');
+	suffix_array_mapping.push_back(file_pos + char_idx);
+}
+
+
 void _construct_truncated_suffix_array_from_csv(
 	const char* csv_file,
 	uint32_t column_idx,
@@ -61,6 +118,7 @@ void _construct_truncated_suffix_array_from_csv(
 		uint32_t char_idx = 0;
 		uint32_t col_idx  = 0;
 
+		/*
 		while (col_idx < column_idx) {
 			if (line[char_idx] == ',') {
 				++col_idx;
@@ -69,7 +127,6 @@ void _construct_truncated_suffix_array_from_csv(
 		}
 
 		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
-			// text.push_back(line[char_idx]);
 			text.push_back(tolower(line[char_idx]));
 			suffix_array_mapping.push_back(file_pos + char_idx);
 			++char_idx;
@@ -77,6 +134,14 @@ void _construct_truncated_suffix_array_from_csv(
 
 		text.push_back('\n');
 		suffix_array_mapping.push_back(file_pos + char_idx);
+		*/
+		parse_line(
+			line,
+			text,
+			suffix_array_mapping,
+			file_pos,
+			column_idx
+		);
 
 		file_pos += read;
 	}
@@ -143,6 +208,7 @@ void construct_truncated_suffix_array_from_csv(
 	suffix_array_mapping.reserve(num_lines * max_suffix_length);
 
 	while ((read = getline(&line, &len, file)) != -1) {
+		/*
 		uint32_t char_idx = 0;
 		uint32_t col_idx  = 0;
 
@@ -179,6 +245,16 @@ void construct_truncated_suffix_array_from_csv(
 
 		text.push_back('\n');
 		suffix_array_mapping.push_back(file_pos + char_idx);
+
+		*/
+
+		parse_line(
+			line,
+			text,
+			suffix_array_mapping,
+			file_pos,
+			column_idx
+		);
 
 		file_pos += read;
 	}
@@ -229,6 +305,8 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 		exit(1);
 	}
 
+	uint32_t max_line_length = 1024;
+
 	char*    line = NULL;
 	uint64_t len = 0;
 	ssize_t  read;
@@ -256,6 +334,9 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 			) {
 		bytes_read += read;
 
+		if (read > max_line_length) max_line_length = read;
+
+		/*
 		uint32_t char_idx = 0;
 		uint32_t col_idx  = 0;
 
@@ -303,6 +384,14 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 
 		text.push_back('\n');
 		suffix_array_mapping.push_back(file_pos + char_idx);
+		*/
+		parse_line(
+			line,
+			text,
+			suffix_array_mapping,
+			file_pos,
+			column_idx
+		);
 
 		file_pos += read;
 	}
@@ -328,6 +417,7 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	);
 
 	// Remap suffix array indices to original file positions.
+	#pragma omp parallel for
 	for (uint32_t i = 0; i < *suffix_array_size; ++i) {
 		suffix_array[i] = suffix_array_mapping[suffix_array[i]];
 	}
