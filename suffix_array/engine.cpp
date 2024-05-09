@@ -27,7 +27,7 @@ inline void parse_line(
 		const char* line,
 		std::vector<char>& text,
 		std::vector<uint32_t>& suffix_array_mapping,
-		uint64_t& file_pos,
+		uint64_t file_pos,
 		uint32_t column_idx
 		) {
 	uint32_t char_idx = 0;
@@ -127,8 +127,6 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 				&& 
 			(bytes_read < TWO_GB)
 			) {
-		bytes_read += read;
-
 		if (read > max_line_length) max_line_length = read;
 
 		/*
@@ -184,11 +182,13 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 			line,
 			text,
 			suffix_array_mapping,
-			file_pos,
+			// file_pos,
+			bytes_read,
 			column_idx
 		);
 
-		file_pos += read;
+		bytes_read += read;
+		file_pos   += read;
 	}
 
 	fclose(file);
@@ -492,7 +492,7 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
 	return std::make_pair(start, end);
 }
 
-std::pair<uint32_t, uint32_t> get_substring_positions_file(
+std::pair<uint64_t, uint64_t> get_substring_positions_file(
 	FILE* file,
     uint64_t byte_offset,
     uint32_t* suffix_array,
@@ -502,6 +502,7 @@ std::pair<uint32_t, uint32_t> get_substring_positions_file(
     int64_t m = strlen(substring);
     int64_t first = 0;
     int64_t last = n - 1;
+
     int64_t start = -1;
 	int64_t end = -1;
 
@@ -511,7 +512,7 @@ std::pair<uint32_t, uint32_t> get_substring_positions_file(
     // Binary search for the first occurrence of the substring
     while (first <= last) {
         int64_t mid = (first + last) / 2;
-		fseek(file, byte_offset + suffix_array[mid], SEEK_SET);
+		fseek(file, byte_offset + (uint64_t)suffix_array[mid], SEEK_SET);
 		fread(line, 1, 32, file);
 
 		for (int i = 0; i < 32; ++i) {
@@ -529,14 +530,14 @@ std::pair<uint32_t, uint32_t> get_substring_positions_file(
     }
 
     if (start == -1) {
-        return std::make_pair(-1, -1);
+        return std::make_pair(UINT32_MAX, UINT32_MAX);
     }
 
     // Reset for searching the last occurrence
     first = 0, last = n - 1;
     while (first <= last) {
         int64_t mid = (first + last) / 2;
-		fseek(file, byte_offset + suffix_array[mid], SEEK_SET);
+		fseek(file, byte_offset + (uint64_t)suffix_array[mid], SEEK_SET);
 		fread(line, 1, 32, file);
 
 		for (int i = 0; i < 32; ++i) {
@@ -643,7 +644,7 @@ std::vector<std::string> get_matching_records(
 		exit(1);
 	}
 
-	std::pair<uint32_t, uint32_t> match_idxs = get_substring_positions_file(
+	std::pair<uint64_t, uint64_t> match_idxs = get_substring_positions_file(
 			file,
 			byte_offset,
 			suffix_array, 
@@ -651,7 +652,7 @@ std::vector<std::string> get_matching_records(
 			substring
 			);
 
-	if ((int)match_idxs.first == -1) {
+	if (match_idxs.first == UINT32_MAX) {
 		return std::vector<std::string>();
 	}
 
@@ -666,7 +667,7 @@ std::vector<std::string> get_matching_records(
 
 	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
 		// Go to the original index and iterate backwards until newline.
-		uint32_t offset = suffix_array[i];
+		uint64_t offset = suffix_array[i] + byte_offset;
 		uint32_t newline_pos = 0;
 
 		fseek(file, max(offset - 512, 0), SEEK_SET);

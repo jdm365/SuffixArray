@@ -43,7 +43,7 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
     const char* substring
 );
 
-std::pair<uint32_t, uint32_t> get_substring_positions_file(
+std::pair<uint64_t, uint64_t> get_substring_positions_file(
     FILE* file,
 	uint64_t byte_offset,
     uint32_t* suffix_array,

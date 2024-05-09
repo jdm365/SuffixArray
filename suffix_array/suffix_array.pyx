@@ -140,11 +140,10 @@ cdef class SuffixArray:
                 self.columns = header
                 self.column_idx = header.index(self.search_column)
 
-            if self.num_partitions == -1:
-                filesize = os.path.getsize(self.csv_file)
-                two_gb = 2 * 1024 * 1024 * 1024
+            filesize = os.path.getsize(self.csv_file)
+            two_gb = 2 * 1024 * 1024 * 1024
 
-                self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
+            self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
 
             self.suffix_arrays.resize(self.num_partitions)
             self.text_lengths.resize(self.num_partitions)
