@@ -25,10 +25,17 @@ LINK_ARGS = [
     ]
 
 OS = os.uname().sysname
+CXX = os.environ.get('CXX')
 
 if OS != 'Darwin':
     COMPILER_FLAGS += ['-fopenmp']
     LINK_ARGS      += ['-fopenmp']
+
+if CXX is None:
+    raise ValueError("CXX environment variable is not set")
+elif CXX == "clang++":
+    COMPILER_FLAGS += ["-stdlib=libc++"]
+    LINK_ARGS      += ["-stdlib=libc++"]
 
 extensions = [
     Extension(

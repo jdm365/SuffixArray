@@ -204,7 +204,7 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 
 	construct_truncated_suffix_array(
 		text.data(),
-		suffix_array.data(),
+		suffix_array,
 		*suffix_array_size,
 		max_suffix_length
 	);
@@ -414,27 +414,27 @@ void read_text_into_buffer(
 
 	fread(*buffer, 1, *buffer_size, file);
 	fclose(file);
-
-	fflush(stdout);
 }
 
 void construct_truncated_suffix_array(
 	const char* str,
-	uint32_t* suffix_array,
-	uint64_t n,
+	std::vector<uint32_t>& suffix_array,
+	uint32_t n,
 	uint32_t max_suffix_length
 ) {
+
 	max_suffix_length = std::min(max_suffix_length, (uint32_t)n);
 	alignas(64) uint32_t* temp_suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
 
 	// Construct simple suffix array from str
+	#pragma omp parallel for
 	for (uint64_t i = 0; i < n; ++i) {
 		suffix_array[i] = i;
 	}
 
 	recursive_bucket_sort(
 		str,
-		suffix_array,
+		suffix_array.data(),
 		temp_suffix_array,
 		n,
 		n,
@@ -557,44 +557,11 @@ std::pair<uint64_t, uint64_t> get_substring_positions_file(
 	return std::make_pair(start, end);
 }
 
-std::vector<uint32_t> get_matching_indices(
+
+std::vector<std::string> get_matching_records(
 	const char* str,
 	uint32_t* suffix_array,
-	uint32_t* suffix_array_idxs,
-	uint64_t n,
-	const char* substring,
-	int k 
-) {
-	std::pair<uint32_t, uint32_t> match_idxs = get_substring_positions(
-			str, 
-			suffix_array, 
-			n, 
-			substring
-			);
-	if ((int)match_idxs.first == -1) {
-		return std::vector<uint32_t>();
-	}
-
-	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
-
-	std::vector<uint32_t> matches;
-	matches.reserve(num_matches);
-
-	robin_hood::unordered_flat_set<uint32_t> match_set;
-
-	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
-		if (match_set.insert(suffix_array_idxs[suffix_array[i]]).second) {
-			matches.push_back(suffix_array_idxs[suffix_array[i]]);
-		}
-	}
-	return matches;
-}
-
-
-std::vector<uint32_t> get_matching_indices_no_idxs(
-	const char* str,
-	uint32_t* suffix_array,
-	uint64_t n,
+	uint32_t n,
 	const char* substring,
 	int k 
 ) {
@@ -606,16 +573,15 @@ std::vector<uint32_t> get_matching_indices_no_idxs(
 			);
 
 	if ((int)match_idxs.first == -1) {
-		return std::vector<uint32_t>();
+		return std::vector<std::string>();
 	}
 
-	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
-	printf("Num matches: %lu\n", num_matches);
+	uint32_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
 
-	std::vector<uint32_t> matches;
+	std::string record;
+
+	std::vector<std::string> matches;
 	matches.reserve(num_matches);
-
-	robin_hood::unordered_flat_set<uint32_t> match_set;
 
 	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
 		// Go to the original index and iterate backwards until newline.
@@ -623,14 +589,26 @@ std::vector<uint32_t> get_matching_indices_no_idxs(
 		while (str[offset] != '\n') --offset;
 		++offset;
 
-		if (match_set.insert(offset).second) {
-			matches.push_back(offset);
+		while (true) {
+			char c = str[offset++];
+			if (c == '\\') {
+				++offset;
+				record.push_back(str[offset++]);
+				continue;
+			}
+			if (c == '\n') {
+				break;
+			}
+			record.push_back(c);
 		}
+
+		matches.push_back(record);
+		record.clear();
 	}
 	return matches;
 }
 
-std::vector<std::string> get_matching_records(
+std::vector<std::string> get_matching_records_file(
 	const char* filename,
 	uint32_t* suffix_array,
 	uint32_t n,

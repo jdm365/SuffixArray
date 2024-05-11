@@ -24,11 +24,14 @@ from libcpp.string cimport string
 from libcpp.pair cimport pair
 from libcpp cimport bool
 
+from cpython.bytes cimport PyBytes_AsString
+
 
 cimport numpy as np
 import numpy as np
 from tqdm import tqdm
 import os
+import sys
 import csv
 from typing import List
 np.import_array()
@@ -52,15 +55,14 @@ cdef extern from "engine.h":
         uint64_t start_idx,
         uint64_t& end_idx
     ) nogil
-    vector[uint32_t] get_matching_indices(
+    vector[string] get_matching_records(
         const char* text,
         uint32_t* suffix_array,
-        uint32_t* suffix_array_idxs,
         uint32_t text_length,
         const char* substring,
         int k
     )
-    vector[string] get_matching_records(
+    vector[string] get_matching_records_file(
         const char* filename,
         uint32_t* suffix_array,
         uint32_t text_length,
@@ -80,6 +82,7 @@ cdef void lowercase_string(string& s) nogil:
 cdef class SuffixArray:
     cdef string text
     cdef vector[vector[uint32_t]] suffix_arrays
+    cdef uint64_t text_length
     cdef vector[uint32_t] text_lengths
     cdef uint32_t num_rows
     cdef uint32_t max_suffix_length
@@ -154,64 +157,49 @@ cdef class SuffixArray:
 
 
 
-    '''
     cpdef void construct_truncated_suffix_array_documents(self, list documents):
         ## Convert text to a single string with 
         ## newline separators and get row offsets
-        init = perf_counter()
-        cdef vector[uint32_t] row_offsets
         self.num_rows = len(documents)
-
-        cdef uint32_t global_offset = 0
-        cdef int _id
-        row_offsets.push_back(0)
-        for _id in range(self.num_rows - 1):
-            global_offset += len(documents[_id].encode('utf-8')) + 1
-            row_offsets.push_back(global_offset)
 
         self.text = '\n'.join(documents).encode('utf-8')
         lowercase_string(self.text)
         self.text_length = <uint64_t>len(self.text)
 
-        ## Get the suffix array indices
-        self.suffix_arrays_idxs.resize(self.text_length)
-        cdef int i, j
-        cdef int n = self.num_rows
+        cdef uint32_t TWO_GB = 2 * 1024 * 1024 * 1024
+        self.num_partitions = max(1, (self.text_length // TWO_GB) + (self.text_length % TWO_GB > 0))
+        cdef uint32_t rem_bytes = self.text_length % TWO_GB
+        self.suffix_arrays.resize(self.num_partitions)
+
+        cdef uint32_t i = 0
+        while i < self.num_partitions - 1:
+            with nogil:
+                self.suffix_arrays[i].resize(TWO_GB)
+                construct_truncated_suffix_array(
+                    self.text.data() + i * TWO_GB,
+                    self.suffix_arrays[i],
+                    TWO_GB,
+                    self.max_suffix_length
+                )
+                i += 1
+
         with nogil:
-            for i in prange(n-1):
-                for j in range(row_offsets[i], row_offsets[i+1]):
-                    self.suffix_array_idxs[j] = i
-
-        self.suffix_array_idxs[row_offsets[n-1]] = self.num_rows - 1
-
-        self.suffix_arrays[0].resize(self.text_length)
-        print(f"Text preprocessed in {perf_counter() - init:.2f} seconds")
-
-        init = perf_counter()
-        print("...Constructing suffix array...")
-        with nogil:
+            self.suffix_arrays[i].resize(rem_bytes)
             construct_truncated_suffix_array(
-                self.text.c_str(),
-                self.suffix_arrays[0].data(),
-                self.text_length,
-                self.max_suffix_length,
-                True
+                self.text.data() + i * TWO_GB,
+                self.suffix_arrays[i],
+                rem_bytes,
+                self.max_suffix_length
             )
-        print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
-    '''
 
 
     cdef void construct_truncated_suffix_array_from_csv(self):
-
-        init = perf_counter()
-        print("...Constructing suffix array from csv...")
 
         cdef string filename = self.csv_file.encode('utf-8')
         cdef int i
 
         with nogil:
             for i in range(self.num_partitions):
-                printf("Byte boundary: %lu\n", self.partition_byte_boundaries[i])
                 construct_truncated_suffix_array_from_csv_partitioned(
                     filename.c_str(),
                     self.column_idx,
@@ -222,27 +210,36 @@ cdef class SuffixArray:
                     self.partition_byte_boundaries[i + 1]
                 )
 
-        print(f"Suffix array constructed in {perf_counter() - init:.2f} seconds")
 
 
-    '''
-    def query_indices(self, substring: str, k: int = 1000):
-        for i in range(self.num_partitions):
+    cpdef query_records_2(self, substring: str, k: int = 1000):
+        cdef uint32_t TWO_GB = 2 * 1024 * 1024 * 1024
+        cdef list all_records = []
+        cdef vector[string] records
+        cdef int i = 0
 
-            cdef np.ndarray[uint32_t, ndim=1] positions = np.array(
-                get_matching_indices(
-                    self.text.c_str(),
+        while i < self.num_partitions - 1:
+
+            records = get_matching_records(
+                    self.text.data() + i * TWO_GB,
                     self.suffix_arrays[i].data(),
-                    self.suffix_array_idxs.data(),
-                    self.text_lengths[i],
+                    TWO_GB,
                     substring.lower().encode('utf-8'),
                     k
-                    ),
-                dtype=np.uint32
-            )
-            positions += 
-        return positions
-    '''
+                    )
+            all_records.extend(records)
+            i += 1
+
+        records = get_matching_records(
+                self.text.data() + i * TWO_GB,
+                self.suffix_arrays[i].data(),
+                self.text_length % TWO_GB,
+                substring.lower().encode('utf-8'),
+                k
+                )
+        all_records.extend(records)
+        return [x.decode('utf-8') for x in all_records]
+
 
     cpdef list query_records(self, substring: str, k: int = 1000):
         cdef list all_records = []
@@ -251,7 +248,7 @@ cdef class SuffixArray:
         cdef int i
 
         for i in range(self.num_partitions):
-            _records = get_matching_records(
+            _records = get_matching_records_file(
                 self.csv_file.encode('utf-8'),
                 self.suffix_arrays[i].data(),
                 self.text_lengths[i],

@@ -21,8 +21,8 @@ void read_text_into_buffer(
 
 void construct_truncated_suffix_array(
 	const char* str,
-	uint32_t* suffix_array,
-	uint64_t n,
+	std::vector<uint32_t>& suffix_array,
+	uint32_t n,
 	uint32_t max_suffix_length
 );
 
@@ -51,24 +51,15 @@ std::pair<uint64_t, uint64_t> get_substring_positions_file(
     const char* substring
 );
 
-std::vector<uint32_t> get_matching_indices(
-	const char* str,
-	uint32_t* suffix_array,
-	uint32_t* suffix_array_idxs,
-	uint64_t n,
-	const char* substring,
-	int k 
-);
-
-std::vector<uint32_t> get_matching_indices_no_idxs(
-	const char* str,
-	uint32_t* suffix_array,
-	uint64_t n,
-	const char* substring,
-	int k 
-);
-
 std::vector<std::string> get_matching_records(
+	const char* str,
+	uint32_t* suffix_array,
+	uint32_t n,
+	const char* substring,
+	int k 
+);
+
+std::vector<std::string> get_matching_records_file(
 	const char* filename,
 	uint32_t* suffix_array,
 	uint32_t n,

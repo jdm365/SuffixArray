@@ -4,9 +4,9 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -Werror
 CXXFLAGS += -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field
 CXXFLAGS += -O3 -march=native -mtune=native -ffast-math -funroll-loops -fomit-frame-pointer -fno-exceptions -fno-rtti
 SRCS = suffix_array/engine.cpp suffix_array/main.cpp
-INCLUDES = -I./suffix_array -I./suffix_array/libsais/include
+INCLUDES = -I./suffix_array
 ## OBJS = $(SRCS:.cpp=.o)
-LIBS = -lc++ -lc++abi -L/usr/local/lib -lm -L./suffix_array -llibsais -ldivsufsort
+LIBS = -lc++ -lc++abi -L/usr/local/lib -lm -L./suffix_array
 TARGET = bin/release/suffix_array
 
 ifeq ($(shell uname),Darwin)

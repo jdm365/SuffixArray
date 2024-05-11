@@ -507,12 +507,14 @@ int main() {
 	auto start = std::chrono::high_resolution_clock::now();
 	// start = std::chrono::high_resolution_clock::now();
 	uint32_t suffix_array_size;
-	construct_truncated_suffix_array_from_csv(
+	construct_truncated_suffix_array_from_csv_partitioned(
 			FILENAME,
 			0,
 			suffix_array, 
 			&suffix_array_size,
-			max_suffix_length
+			max_suffix_length,
+			0,
+			n
 			);
 	// construct_suffix_array_index(buffer, suffix_array, n);
 	auto end = std::chrono::high_resolution_clock::now();
