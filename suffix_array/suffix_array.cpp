@@ -7520,7 +7520,7 @@ static int __pyx_pf_12suffix_array_11SuffixArray___init__(struct __pyx_obj_12suf
  * 
  *             self.suffix_arrays.resize(self.num_partitions)             # <<<<<<<<<<<<<<
  *             self.text_lengths.resize(self.num_partitions)
- *             self.partition_byte_boundaries.resize(self.num_partitions)
+ *             self.partition_byte_boundaries.resize(self.num_partitions + 1)
  */
     try {
       __pyx_v_self->suffix_arrays.resize(__pyx_v_self->num_partitions);
@@ -7533,7 +7533,7 @@ static int __pyx_pf_12suffix_array_11SuffixArray___init__(struct __pyx_obj_12suf
  * 
  *             self.suffix_arrays.resize(self.num_partitions)
  *             self.text_lengths.resize(self.num_partitions)             # <<<<<<<<<<<<<<
- *             self.partition_byte_boundaries.resize(self.num_partitions)
+ *             self.partition_byte_boundaries.resize(self.num_partitions + 1)
  *             self.partition_byte_boundaries[0] = 0
  */
     try {
@@ -7546,12 +7546,12 @@ static int __pyx_pf_12suffix_array_11SuffixArray___init__(struct __pyx_obj_12suf
     /* "suffix_array.pyx":153
  *             self.suffix_arrays.resize(self.num_partitions)
  *             self.text_lengths.resize(self.num_partitions)
- *             self.partition_byte_boundaries.resize(self.num_partitions)             # <<<<<<<<<<<<<<
+ *             self.partition_byte_boundaries.resize(self.num_partitions + 1)             # <<<<<<<<<<<<<<
  *             self.partition_byte_boundaries[0] = 0
  * 
  */
     try {
-      __pyx_v_self->partition_byte_boundaries.resize(__pyx_v_self->num_partitions);
+      __pyx_v_self->partition_byte_boundaries.resize((__pyx_v_self->num_partitions + 1));
     } catch(...) {
       __Pyx_CppExn2PyErr();
       __PYX_ERR(0, 153, __pyx_L1_error)
@@ -7559,7 +7559,7 @@ static int __pyx_pf_12suffix_array_11SuffixArray___init__(struct __pyx_obj_12suf
 
     /* "suffix_array.pyx":154
  *             self.text_lengths.resize(self.num_partitions)
- *             self.partition_byte_boundaries.resize(self.num_partitions)
+ *             self.partition_byte_boundaries.resize(self.num_partitions + 1)
  *             self.partition_byte_boundaries[0] = 0             # <<<<<<<<<<<<<<
  * 
  *             self.construct_truncated_suffix_array_from_csv()

@@ -35,3 +35,6 @@ install:
 
 clean:
 	rm -r build dist *.egg-info .cache
+
+get_data:
+	bash get_data.sh

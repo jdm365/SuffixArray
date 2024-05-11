@@ -30,26 +30,45 @@ inline void parse_line(
 		uint64_t file_pos,
 		uint32_t column_idx
 		) {
+
 	uint32_t char_idx = 0;
 	uint32_t col_idx  = 0;
+
+	uint32_t line_length = strlen(line);
+	bool first_in_col = true;
 
 	while (col_idx < column_idx) {
 		if (line[char_idx] == '\\') {
 			char_idx += 2;
+			first_in_col = false;
 			continue;
 		}
-		if (line[char_idx] == '"') {
+
+		if (line[char_idx] == '"' && first_in_col) {
+			first_in_col = false;
 			++char_idx;
 			while (line[char_idx] != '"') {
 				++char_idx;
+				if (char_idx >= line_length) {
+					printf("Error: Invalid CSV format\n");
+					printf("Line: %s\n\n", line);
+					printf("File position: %lu\n", file_pos);
+					return;
+					// exit(1);
+				}
 			}
 			++char_idx;
 		}
 		if (line[char_idx] == ',') {
 			++col_idx;
+			first_in_col = true;
+		} else {
+			first_in_col = false;
 		}
 		++char_idx;
 	}
+
+	first_in_col = true;
 
 	while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
 		if (line[char_idx] == '\\') {
@@ -57,11 +76,22 @@ inline void parse_line(
 			text.push_back(tolower(line[char_idx]));
 			suffix_array_mapping.push_back(file_pos + char_idx);
 			++char_idx;
+
+			first_in_col = false;
 			continue;
 		}
-		if (line[char_idx] == '"') {
+		if (line[char_idx] == '"' && first_in_col) {
+			first_in_col = false;
+
 			++char_idx;
 			while (line[char_idx] != '"') {
+				if (char_idx >= line_length) {
+					printf("Error: Invalid CSV format\n");
+					printf("Line: %s\n\n", line);
+					printf("File position: %lu\n", file_pos);
+					return;
+					// exit(1);
+				}
 				text.push_back(tolower(line[char_idx]));
 				suffix_array_mapping.push_back(file_pos + char_idx);
 				++char_idx;
@@ -73,6 +103,8 @@ inline void parse_line(
 		text.push_back(tolower(line[char_idx]));
 		suffix_array_mapping.push_back(file_pos + char_idx);
 		++char_idx;
+
+		first_in_col = false;
 	}
 
 	text.push_back('\n');
@@ -105,7 +137,7 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	char*    line = NULL;
 	uint64_t len = 0;
 	ssize_t  read;
-	uint64_t file_pos = 0;
+	uint64_t file_pos = start_idx;
 	uint64_t bytes_read = 0;
 
 	uint64_t line_0_size = getline(&line, &len, file);
@@ -113,14 +145,14 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	uint64_t num_lines = TWO_GB / line_0_size;
 	fseek(file, start_idx, SEEK_SET);
 
-	printf("Num lines: %lu\n", num_lines);
-	fflush(stdout);
-
 	std::vector<char> text;
 	text.reserve(num_lines * max_suffix_length);
 
 	std::vector<uint32_t> suffix_array_mapping;
 	suffix_array_mapping.reserve(num_lines * max_suffix_length);
+
+	printf("Start idx: %lu\n", start_idx);
+	fflush(stdout);
 
 	while (
 			((read = getline(&line, &len, file)) != -1)
@@ -129,55 +161,6 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 			) {
 		if (read > max_line_length) max_line_length = read;
 
-		/*
-		uint32_t char_idx = 0;
-		uint32_t col_idx  = 0;
-
-		while (col_idx < column_idx) {
-			if (line[char_idx] == '\\') {
-				char_idx += 2;
-				continue;
-			}
-			if (line[char_idx] == '"') {
-				++char_idx;
-				while (line[char_idx] != '"') {
-					++char_idx;
-				}
-				++char_idx;
-			}
-			if (line[char_idx] == ',') {
-				++col_idx;
-			}
-			++char_idx;
-		}
-
-		while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
-			if (line[char_idx] == '\\') {
-				++char_idx;
-				text.push_back(tolower(line[char_idx]));
-				suffix_array_mapping.push_back(file_pos + char_idx);
-				++char_idx;
-				continue;
-			}
-			if (line[char_idx] == '"') {
-				++char_idx;
-				while (line[char_idx] != '"') {
-					text.push_back(tolower(line[char_idx]));
-					suffix_array_mapping.push_back(file_pos + char_idx);
-					++char_idx;
-				}
-				++char_idx;
-				continue;
-			}
-
-			text.push_back(tolower(line[char_idx]));
-			suffix_array_mapping.push_back(file_pos + char_idx);
-			++char_idx;
-		}
-
-		text.push_back('\n');
-		suffix_array_mapping.push_back(file_pos + char_idx);
-		*/
 		parse_line(
 			line,
 			text,
@@ -194,6 +177,8 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	fclose(file);
 
 	end_idx = file_pos;
+	printf("End idx: %lu\n", end_idx);
+	fflush(stdout);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;

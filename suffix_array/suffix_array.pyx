@@ -150,7 +150,7 @@ cdef class SuffixArray:
 
             self.suffix_arrays.resize(self.num_partitions)
             self.text_lengths.resize(self.num_partitions)
-            self.partition_byte_boundaries.resize(self.num_partitions)
+            self.partition_byte_boundaries.resize(self.num_partitions + 1)
             self.partition_byte_boundaries[0] = 0
 
             self.construct_truncated_suffix_array_from_csv()
