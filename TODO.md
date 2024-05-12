@@ -1,3 +1,4 @@
+- assess encoding errors.
 - assess feasibility of disk-based suffix-array storage.
 - rebuild saving and loading functions.
 - Cleanup. Merge get_records functions to auto-detect constructor. Cleanup all the crap member vars.

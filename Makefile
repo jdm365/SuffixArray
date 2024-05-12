@@ -38,3 +38,6 @@ clean:
 
 get_data:
 	bash get_data.sh
+
+demo:
+	python searchapp_demo/main.py

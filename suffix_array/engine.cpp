@@ -50,9 +50,11 @@ inline void parse_line(
 			while (line[char_idx] != '"') {
 				++char_idx;
 				if (char_idx >= line_length) {
+					/*
 					printf("Error: Invalid CSV format\n");
 					printf("Line: %s\n\n", line);
 					printf("File position: %lu\n", file_pos);
+					*/
 					return;
 					// exit(1);
 				}
@@ -86,9 +88,11 @@ inline void parse_line(
 			++char_idx;
 			while (line[char_idx] != '"') {
 				if (char_idx >= line_length) {
+					/*
 					printf("Error: Invalid CSV format\n");
 					printf("Line: %s\n\n", line);
 					printf("File position: %lu\n", file_pos);
+					*/
 					return;
 					// exit(1);
 				}

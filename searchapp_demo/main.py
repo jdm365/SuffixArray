@@ -97,14 +97,16 @@ class SearchApp:
 
 if __name__ == '__main__':
     ## DATA_DIR = '/home/jdm365/SearchApp/data'
-    DATA_DIR = './'
-    FILENAME = 'people_data_labs_sample.csv'
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.path.join(CURRENT_DIR, './')
+    ## FILENAME = 'people_data_labs_sample.csv'
+    FILENAME = 'companies_700M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
     search_app = SearchApp(
             csv_filename=FILEPATH,
             )
 
-    os.system("open index.html")
+    os.system(f"open {os.path.join(CURRENT_DIR, 'index.html')}")
 
     app.run()
