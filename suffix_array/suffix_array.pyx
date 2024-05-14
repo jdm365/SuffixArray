@@ -259,18 +259,6 @@ cdef class SuffixArray:
 
             records = [x.decode('utf-8') for x in _records]
 
-            '''
-            records = []
-            for record in _records:
-                try:
-                    records.append(record.decode('utf-8'))
-                except Exception as e:
-                    print(f"Error decoding record: {record}\n")
-                    print(e)
-
-            ## print(records)
-            '''
-
             reader = csv.reader(records, delimiter=',')
             records = [x for x in reader]
             records = [dict(zip(self.columns, x)) for x in records]
@@ -284,8 +272,6 @@ cdef class SuffixArray:
         return all_records
 
 
-
-    '''
     def save(self, save_dir: str):
         if save_dir in {'suffix_array', 'tests', 'data'}:
             raise ValueError("Cannot save to reserved directory")
@@ -304,14 +290,19 @@ cdef class SuffixArray:
         fwrite(self.text.c_str(), sizeof(char), self.text_length, f)
         fclose(f)
 
-        ## Save suffix array. Just binary dump with c/cpp
-        f = fopen(os.path.join(self.save_dir, 'suffix_array.bin').encode('utf-8'), 'wb')
-        fwrite(self.suffix_array.data(), sizeof(uint32_t), self.text_length, f)
+        ## Save suffix arrays. Just binary dump with c/cpp
+        for i in range(self.num_partitions):
+            f = fopen(os.path.join(self.save_dir, f'suffix_array_{i}.bin').encode('utf-8'), 'wb')
+            fwrite(self.suffix_arrays[i].data(), sizeof(uint32_t), self.text_lengths[i], f)
+            fclose(f)
+
+        ## Save text_lengths and partition_byte_boundaries vectors
+        f = fopen(os.path.join(self.save_dir, 'text_lengths.bin').encode('utf-8'), 'wb')
+        fwrite(self.text_lengths.data(), sizeof(uint32_t), self.num_partitions, f)
         fclose(f)
 
-        ## Save suffix array indices
-        f = fopen(os.path.join(self.save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'wb')
-        fwrite(self.suffix_array_idxs.data(), sizeof(uint32_t), self.text_length, f)
+        f = fopen(os.path.join(self.save_dir, 'partition_byte_boundaries.bin').encode('utf-8'), 'wb')
+        fwrite(self.partition_byte_boundaries.data(), sizeof(uint64_t), self.num_partitions + 1, f)
         fclose(f)
 
         ## Save metadata
@@ -339,23 +330,25 @@ cdef class SuffixArray:
         fread(self.text.data(), sizeof(char), buffer_size, f)
         fclose(f)
 
-        ## Load suffix array
-        f = fopen(os.path.join(save_dir, 'suffix_array.bin').encode('utf-8'), 'rb')
+        ## Load suffix arrays
+        for i in range(self.num_partitions):
+            f = fopen(os.path.join(save_dir, f'suffix_array_{i}.bin').encode('utf-8'), 'rb')
+            fseek(f, 0, SEEK_END)
+            buffer_size = ftell(f)
+            fseek(f, 0, SEEK_SET)
+
+            self.suffix_arrays[i].resize(buffer_size // sizeof(uint32_t))
+            fread(self.suffix_arrays[i].data(), sizeof(uint32_t), buffer_size // sizeof(uint32_t), f)
+            fclose(f)
+
+        ## Load text_lengths and partition_byte_boundaries vectors
+        f = fopen(os.path.join(save_dir, 'text_lengths.bin').encode('utf-8'), 'rb')
         fseek(f, 0, SEEK_END)
         buffer_size = ftell(f)
         fseek(f, 0, SEEK_SET)
 
-        self.suffix_array.resize(buffer_size // sizeof(uint32_t))
-        fread(self.suffix_array.data(), sizeof(uint32_t), buffer_size // sizeof(uint32_t), f)
-        fclose(f)
-
-        ## Load suffix array indices
-        f = fopen(os.path.join(save_dir, 'suffix_array_idxs.bin').encode('utf-8'), 'rb')
-        fseek(f, 0, SEEK_END)
-        buffer_size = ftell(f)
-        fseek(f, 0, SEEK_SET)
-        self.suffix_array_idxs.resize(buffer_size // sizeof(uint32_t))
-        fread(self.suffix_array_idxs.data(), sizeof(uint32_t), buffer_size // sizeof(uint32_t), f)
+        self.text_lengths.resize(buffer_size // sizeof(uint32_t))
+        fread(self.text_lengths.data(), sizeof(uint32_t), buffer_size // sizeof(uint32_t), f)
         fclose(f)
 
         ## Load metadata
@@ -366,4 +359,3 @@ cdef class SuffixArray:
             self.text_length       = int(metadata[1].split(': ')[1])
             self.num_rows          = int(metadata[2].split(': ')[1])
             self.num_threads       = int(metadata[3].split(': ')[1])
-    '''

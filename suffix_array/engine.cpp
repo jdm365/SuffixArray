@@ -195,6 +195,7 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;
 	printf("Time to read and parse CSV: %f\n", elapsed.count());
+	printf("Mb/s: %f\n", (double)bytes_read / (1024 * 1024) / elapsed.count());
 
 	*suffix_array_size = text.size();
 	suffix_array.resize(*suffix_array_size);

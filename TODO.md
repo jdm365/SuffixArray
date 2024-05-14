@@ -1,4 +1,4 @@
-- assess encoding errors.
-- assess feasibility of disk-based suffix-array storage.
 - rebuild saving and loading functions.
+- Move construction of suffix array to methods and not in constructor.
 - Cleanup. Merge get_records functions to auto-detect constructor. Cleanup all the crap member vars.
+- assess feasibility of disk-based suffix-array storage.
