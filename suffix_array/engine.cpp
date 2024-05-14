@@ -23,6 +23,14 @@ inline uint32_t max(uint32_t a, uint32_t b) {
 	return a > b ? a : b;
 }
 
+inline uint64_t min(uint64_t a, uint64_t b) {
+	return a < b ? a : b;
+}
+
+inline uint64_t max(uint64_t a, uint64_t b) {
+	return a > b ? a : b;
+}
+
 inline void parse_line(
 		const char* line,
 		std::vector<char>& text,

@@ -248,8 +248,6 @@ cdef class SuffixArray:
         cdef int i
 
         for i in range(self.num_partitions):
-            print(f"partition_byte_boundaries: {self.partition_byte_boundaries[i]}")
-            print(f"Text length: {self.text_lengths[i]}")
             _records = get_matching_records_file(
                 self.csv_file.encode('utf-8'),
                 self.suffix_arrays[i].data(),
@@ -259,7 +257,9 @@ cdef class SuffixArray:
                 k
             )
 
-            ## records = [x.decode('utf-8').split(',') for x in _records]
+            records = [x.decode('utf-8') for x in _records]
+
+            '''
             records = []
             for record in _records:
                 try:
@@ -268,7 +268,8 @@ cdef class SuffixArray:
                     print(f"Error decoding record: {record}\n")
                     print(e)
 
-            print(records)
+            ## print(records)
+            '''
 
             reader = csv.reader(records, delimiter=',')
             records = [x for x in reader]
