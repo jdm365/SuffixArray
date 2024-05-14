@@ -97,67 +97,21 @@ cdef class SuffixArray:
     cdef vector[uint64_t] partition_byte_boundaries
 
 
-    def __init__(
-            self, 
-            csv_file: str = '',
-            search_column: str = '',
-            documents: List[str] = [],
-            max_suffix_length: int = 64,
-            load_dir: str = ''
-            ):
+    def __init__(self, max_suffix_length: int = 64):
         self.max_suffix_length = max_suffix_length
-        self.csv_file          = csv_file
-        self.search_column     = search_column
 
-        if load_dir != '':
-            self.load(load_dir)
-            return
 
+    cpdef void construct_truncated_suffix_array_documents(self, list documents):
         if not isinstance(documents, list):
             try:
                 documents = list(documents)
             except:
                 raise ValueError("Documents must be a list of strings")
 
-        self.from_csv = False
+        self.num_rows = len(documents)
+        self.num_partitions = 1
+        self.partition_byte_boundaries.push_back(0)
 
-        if len(documents) > 0:
-            self.num_rows = len(documents)
-            self.num_partitions = 1
-            self.partition_byte_boundaries.push_back(0)
-
-            self.construct_truncated_suffix_array_documents(documents)
-        else:
-            self.from_csv = True
-
-            if not self.csv_file.endswith('.csv'):
-                raise ValueError("Invalid file format. Must be a CSV file")
-
-            ## Check for column name in header.
-            ## Get column index.
-            with open(self.csv_file, 'r') as file:
-                header = file.readline().strip().split(',')
-                if self.search_column not in header:
-                    raise ValueError(f"Column {self.search_column} not found in CSV file")
-
-                self.columns = header
-                self.column_idx = header.index(self.search_column)
-
-            filesize = os.path.getsize(self.csv_file)
-            two_gb = 2 * 1024 * 1024 * 1024
-
-            self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
-
-            self.suffix_arrays.resize(self.num_partitions)
-            self.text_lengths.resize(self.num_partitions)
-            self.partition_byte_boundaries.resize(self.num_partitions + 1)
-            self.partition_byte_boundaries[0] = 0
-
-            self.construct_truncated_suffix_array_from_csv()
-
-
-
-    cpdef void construct_truncated_suffix_array_documents(self, list documents):
         ## Convert text to a single string with 
         ## newline separators and get row offsets
         self.num_rows = len(documents)
@@ -193,15 +147,42 @@ cdef class SuffixArray:
             )
 
 
-    cdef void construct_truncated_suffix_array_from_csv(self):
+    cpdef void construct_truncated_suffix_array_from_csv(self, filename: str, search_column: str):
+        self.csv_file          = filename
+        self.search_column     = search_column
+        self.from_csv          = True
 
-        cdef string filename = self.csv_file.encode('utf-8')
+        if not self.csv_file.endswith('.csv'):
+            raise ValueError("Invalid file format. Must be a CSV file")
+
+        ## Check for column name in header.
+        ## Get column index.
+        with open(self.csv_file, 'r') as file:
+            header = file.readline().strip().split(',')
+            if self.search_column not in header:
+                raise ValueError(f"Column {self.search_column} not found in CSV file")
+
+            self.columns = header
+            self.column_idx = header.index(self.search_column)
+
+        filesize = os.path.getsize(self.csv_file)
+        two_gb = 2 * 1024 * 1024 * 1024
+
+        self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
+
+        self.suffix_arrays.resize(self.num_partitions)
+        self.text_lengths.resize(self.num_partitions)
+        self.partition_byte_boundaries.resize(self.num_partitions + 1)
+        self.partition_byte_boundaries[0] = 0
+
+
+        cdef const char* c_filename = PyBytes_AsString(self.csv_file.encode('utf-8'))
         cdef int i
 
         with nogil:
             for i in range(self.num_partitions):
                 construct_truncated_suffix_array_from_csv_partitioned(
-                    filename.c_str(),
+                    c_filename,
                     self.column_idx,
                     self.suffix_arrays[i],
                     &self.text_lengths[i],
@@ -247,6 +228,12 @@ cdef class SuffixArray:
         cdef vector[string] _records
         cdef int i
 
+        print(f"CSV file: {self.csv_file.encode('utf-8')}")
+        print(f"Num partitions: {self.num_partitions}")
+        print(f"Text lengths: {self.text_lengths}")
+        print(f"Partition byte boundaries: {self.partition_byte_boundaries}")
+        print(f"Suffix array size: {self.suffix_arrays[0].size()}")
+        print(f"Suffix array size: {self.suffix_arrays[1].size()}")
         for i in range(self.num_partitions):
             _records = get_matching_records_file(
                 self.csv_file.encode('utf-8'),
@@ -285,11 +272,6 @@ cdef class SuffixArray:
 
         cdef FILE* f
 
-        ## Save text
-        f = fopen(os.path.join(self.save_dir, 'text.txt').encode('utf-8'), 'wb')
-        fwrite(self.text.c_str(), sizeof(char), self.text_length, f)
-        fclose(f)
-
         ## Save suffix arrays. Just binary dump with c/cpp
         for i in range(self.num_partitions):
             f = fopen(os.path.join(self.save_dir, f'suffix_array_{i}.bin').encode('utf-8'), 'wb')
@@ -311,26 +293,56 @@ cdef class SuffixArray:
             file.write(f"text_length: {self.text_length}\n")
             file.write(f"num_rows: {self.num_rows}\n")
             file.write(f"num_threads: {self.num_threads}\n")
+            file.write(f"num_partitions: {self.num_partitions}\n")
+            if self.from_csv:
+                file.write(f"csv_file: {self.csv_file}\n")
+            else:
+                file.write(f"from_csv: {0}\n")
+
+        ## Save text
+        if not self.from_csv:
+            f = fopen(os.path.join(self.save_dir, 'text.txt').encode('utf-8'), 'wb')
+            fwrite(self.text.c_str(), sizeof(char), self.text_length, f)
+            fclose(f)
 
 
     def load(self, save_dir: str):
+        ## Load metadata
+        with open(os.path.join(save_dir, 'metadata.txt'), 'r') as file:
+            metadata = file.read().split('\n')
+
+            self.max_suffix_length = int(metadata[0].split(': ')[1])
+            self.text_length       = int(metadata[1].split(': ')[1])
+            self.num_rows          = int(metadata[2].split(': ')[1])
+            self.num_threads       = int(metadata[3].split(': ')[1])
+            self.num_partitions    = int(metadata[4].split(': ')[1])
+            self.csv_file          = metadata[5].split(': ')[1]
+            self.from_csv          = self.csv_file != '0'
+        
+        print(f"Loading from CSV: {self.from_csv}")
+        print(f"CSV file: {self.csv_file}")
+        sys.stdout.flush()
+
         cdef FILE* f
+        cdef uint64_t buffer_size
 
-        ## Load text
-        f = fopen(os.path.join(save_dir, 'text.txt').encode('utf-8'), 'rb')
-        if f is NULL:
-            raise ValueError(f"File {save_dir} does not exist")
+        if not self.from_csv:
+            ## Load text
+            f = fopen(os.path.join(save_dir, 'text.txt').encode('utf-8'), 'rb')
+            if f is NULL:
+                raise ValueError(f"File {save_dir} does not exist")
 
-        fseek(f, 0, SEEK_END)
-        cdef uint64_t buffer_size = ftell(f)
-        fseek(f, 0, SEEK_SET)
+            fseek(f, 0, SEEK_END)
+            buffer_size = ftell(f)
+            fseek(f, 0, SEEK_SET)
 
-        self.text.resize(buffer_size)
+            self.text.resize(buffer_size)
 
-        fread(self.text.data(), sizeof(char), buffer_size, f)
-        fclose(f)
+            fread(self.text.data(), sizeof(char), buffer_size, f)
+            fclose(f)
 
         ## Load suffix arrays
+        self.suffix_arrays.resize(self.num_partitions)
         for i in range(self.num_partitions):
             f = fopen(os.path.join(save_dir, f'suffix_array_{i}.bin').encode('utf-8'), 'rb')
             fseek(f, 0, SEEK_END)
@@ -351,11 +363,11 @@ cdef class SuffixArray:
         fread(self.text_lengths.data(), sizeof(uint32_t), buffer_size // sizeof(uint32_t), f)
         fclose(f)
 
-        ## Load metadata
-        with open(os.path.join(save_dir, 'metadata.txt'), 'r') as file:
-            metadata = file.read().split('\n')
+        f = fopen(os.path.join(save_dir, 'partition_byte_boundaries.bin').encode('utf-8'), 'rb')
+        fseek(f, 0, SEEK_END)
+        buffer_size = ftell(f)
+        fseek(f, 0, SEEK_SET)
 
-            self.max_suffix_length = int(metadata[0].split(': ')[1])
-            self.text_length       = int(metadata[1].split(': ')[1])
-            self.num_rows          = int(metadata[2].split(': ')[1])
-            self.num_threads       = int(metadata[3].split(': ')[1])
+        self.partition_byte_boundaries.resize(buffer_size // sizeof(uint64_t))
+        fread(self.partition_byte_boundaries.data(), sizeof(uint64_t), buffer_size // sizeof(uint64_t), f)
+        fclose(f)

@@ -45,17 +45,28 @@ class SearchApp:
         self.csv_filename = csv_filename
         self.column_names = self.get_column_names()
 
+        self.reader = SuffixArray(max_suffix_length=32)
+
         init = perf_counter()
-        self.reader = SuffixArray(
-                csv_file=self.csv_filename,
-                search_column="name",
-                max_suffix_length=32
+        self.reader.construct_truncated_suffix_array_from_csv(
+                filename=self.csv_filename,
+                search_column="name"
                 )
         print(f'Building suffix array took {perf_counter() - init:.2f} seconds')
 
         init = perf_counter()
         self.reader.save(save_dir='suffix_array_data')
         print(f'Saving suffix array took {perf_counter() - init:.2f} seconds')
+        sys.stdout.flush()
+
+        del self.reader
+        
+        self.reader = SuffixArray(max_suffix_length=32)
+
+        init = perf_counter()
+        self.reader.load(save_dir='suffix_array_data')
+        print(f'Loading suffix array took {perf_counter() - init:.2f} seconds')
+        sys.stdout.flush()
 
 
     def get_column_names(self):
