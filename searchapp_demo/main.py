@@ -54,6 +54,7 @@ class SearchApp:
                 )
         print(f'Building suffix array took {perf_counter() - init:.2f} seconds')
 
+        '''
         init = perf_counter()
         self.reader.save(save_dir='suffix_array_data')
         print(f'Saving suffix array took {perf_counter() - init:.2f} seconds')
@@ -67,6 +68,7 @@ class SearchApp:
         self.reader.load(save_dir='suffix_array_data')
         print(f'Loading suffix array took {perf_counter() - init:.2f} seconds')
         sys.stdout.flush()
+        '''
 
 
     def get_column_names(self):
@@ -110,11 +112,11 @@ class SearchApp:
 
 
 if __name__ == '__main__':
-    ## DATA_DIR = '/home/jdm365/SearchApp/data'
+    DATA_DIR = '/home/jdm365/SearchApp/data'
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_DIR = os.path.join(CURRENT_DIR, './')
-    ## FILENAME = 'companies_sorted.csv'
-    FILENAME = 'people_data_labs_sample.csv'
+    ## DATA_DIR = os.path.join(CURRENT_DIR, './')
+    FILENAME = 'companies_sorted_1M.csv'
+    ## FILENAME = 'people_data_labs_sample.csv'
     ## FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 

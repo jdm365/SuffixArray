@@ -38,33 +38,7 @@
 	var data = [];
 	var columns = [];
 
-	function get_columns() {
-		fetch('http://localhost:5000/columns')
-			.then(response => response.json())
-			.then(data => {
-				columns = data.columns.map((column, index) => {
-					// Determine column width based on number of columns
-					var gridContainerWidth = document.getElementById('myGrid').offsetWidth;
-					var numColumns = data.columns.length;
-					var widthPerColumn = gridContainerWidth / numColumns;
-					var minWidthPerColumn = gridContainerWidth / 8;
-					var columnWidth = Math.max(widthPerColumn, minWidthPerColumn);
-
-					return {
-						id: column,
-						name: column,
-						field: column,
-						width: columnWidth
-					};
-				});
-				grid.setColumns(columns);
-			});
-	}
-
-
 	document.addEventListener("DOMContentLoaded", function() {
-		get_columns();
-
 		grid = new Slick.Grid("#myGrid", data, columns, options);
 		search();
 	});
@@ -82,14 +56,32 @@
 		numResultsDiv.innerHTML = `<b>Number of results:</b> ${results.results.length} 
 								   &nbsp;&nbsp;&nbsp;&nbsp;
 								   <b>Time taken:</b> ${Math.round(results.time_taken_ms)}ms`;
+		if (results.results.length > 0) {
+			// Reset columns to be keys of first result
+			columns = Object.keys(results.results[0]).map((column, index) => {
+				// Determine column width based on number of columns
+				var gridContainerWidth = document.getElementById('myGrid').offsetWidth;
+				var numColumns = Object.keys(results.results[0]).length;
+				var widthPerColumn = gridContainerWidth / numColumns;
+				var minWidthPerColumn = gridContainerWidth / 8;
+				var columnWidth = Math.max(widthPerColumn, minWidthPerColumn);
 
-	// Update grid data
-	grid.setData(results.results);
-	grid.invalidate();
-	grid.render();
-}
+				return {
+					id: column,
+					name: column,
+					field: column,
+					width: columnWidth
+				};
+			});
+		}
 
-  grid = new Slick.Grid("#myGrid", data, columns, options);
+		// Update grid data
+		grid = new Slick.Grid("#myGrid", data, columns, options);
+		grid.setData(results.results);
+		grid.invalidate();
+		grid.render();
+	}
+
 </script>
 </body>
 </html>
