@@ -10,7 +10,8 @@ void recursive_bucket_sort(
 	int string_length,
 	uint64_t n,
 	int max_depth,
-	int current_depth
+	int current_depth,
+	bool skip_newline
 );
 
 void read_text_into_buffer(
@@ -23,7 +24,8 @@ void construct_truncated_suffix_array(
 	const char* str,
 	std::vector<uint32_t>& suffix_array,
 	uint32_t n,
-	uint32_t max_suffix_length
+	uint32_t max_suffix_length,
+	bool skip_newline
 );
 
 void construct_truncated_suffix_array_from_csv_partitioned(
@@ -33,7 +35,8 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	uint32_t* suffix_array_size,
 	uint32_t max_suffix_length,
 	uint64_t start_idx,
-	uint64_t& end_idx
+	uint64_t& end_idx,
+	bool skip_newline
 );
 
 std::pair<uint32_t, uint32_t> get_substring_positions(

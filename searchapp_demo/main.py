@@ -112,11 +112,11 @@ class SearchApp:
 
 
 if __name__ == '__main__':
-    DATA_DIR = '/home/jdm365/SearchApp/data'
+    ## DATA_DIR = '/home/jdm365/SearchApp/data'
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-    ## DATA_DIR = os.path.join(CURRENT_DIR, './')
-    FILENAME = 'companies_sorted_1M.csv'
-    ## FILENAME = 'people_data_labs_sample.csv'
+    DATA_DIR = os.path.join(CURRENT_DIR, './')
+    ## FILENAME = 'companies_sorted_1M.csv'
+    FILENAME = 'people_data_labs_sample.csv'
     ## FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 

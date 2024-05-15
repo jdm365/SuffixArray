@@ -44,7 +44,8 @@ cdef extern from "engine.h":
         const char* text,
         vector[uint32_t]& suffix_array,
         uint32_t text_length,
-        uint32_t max_suffix_length
+        uint32_t max_suffix_length,
+        bool skip_newline
     ) nogil
     void construct_truncated_suffix_array_from_csv_partitioned(
         const char* csv_file,
@@ -53,7 +54,8 @@ cdef extern from "engine.h":
         uint32_t* suffix_array_size,
         uint32_t max_suffix_length,
         uint64_t start_idx,
-        uint64_t& end_idx
+        uint64_t& end_idx,
+        bool skip_newline
     ) nogil
     vector[string] get_matching_records(
         const char* text,
@@ -133,7 +135,8 @@ cdef class SuffixArray:
                     self.text.data() + i * TWO_GB,
                     self.suffix_arrays[i],
                     TWO_GB,
-                    self.max_suffix_length
+                    self.max_suffix_length,
+                    True
                 )
                 i += 1
 
@@ -143,7 +146,8 @@ cdef class SuffixArray:
                 self.text.data() + i * TWO_GB,
                 self.suffix_arrays[i],
                 rem_bytes,
-                self.max_suffix_length
+                self.max_suffix_length,
+                True
             )
 
 
@@ -188,7 +192,8 @@ cdef class SuffixArray:
                     &self.text_lengths[i],
                     self.max_suffix_length,
                     self.partition_byte_boundaries[i],
-                    self.partition_byte_boundaries[i + 1]
+                    self.partition_byte_boundaries[i + 1],
+                    True
                 )
 
 

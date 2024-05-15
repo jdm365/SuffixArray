@@ -131,7 +131,8 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	uint32_t* suffix_array_size,
 	uint32_t max_suffix_length,
 	uint64_t start_idx,
-	uint64_t& end_idx
+	uint64_t& end_idx,
+	bool skip_newline
 ) {
 	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
 
@@ -204,7 +205,8 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 		text.data(),
 		suffix_array,
 		*suffix_array_size,
-		max_suffix_length
+		max_suffix_length,
+		skip_newline
 	);
 
 	// Remap suffix array indices to original file positions.
@@ -259,7 +261,8 @@ void recursive_bucket_sort(
 	int string_length,
 	uint64_t n,
 	int max_depth,
-	int current_depth
+	int current_depth,
+	bool skip_newline
 ) {
 	// Base case
 	if (current_depth == max_depth) {
@@ -272,7 +275,6 @@ void recursive_bucket_sort(
 			int j = i;
 			// while (j > 0 && strncmp(str + suffix_array[j] + current_depth, str + suffix_array[j - 1] + current_depth, max_depth) < 0) {
 			while (j > 0 && strncmp_128(str + suffix_array[j] + current_depth, str + suffix_array[j - 1] + current_depth, max_depth) < 0) {
-			// while (j > 0 && strncmp_256(str + suffix_array[j] + current_depth, str + suffix_array[j - 1] + current_depth, max_depth) < 0) {
 				std::swap(suffix_array[j], suffix_array[j - 1]);
 				--j;
 			}
@@ -283,37 +285,6 @@ void recursive_bucket_sort(
 	// Do bucket sort of first char. Then in each bucket, skip
 	// current_depth chars and do bucket sort of next char.
 
-	/*
-	const int thread_id = omp_get_thread_num();
-	const int thread_offset = thread_id * 256;
-	for (size_t i = 0; i < 256; ++i) {
-		buckets[thread_offset + i] = 0;
-	}
-
-	for (uint64_t i = 0; i < n; ++i) {
-		int char_idx = suffix_array[i] + current_depth;
-		uint8_t char_val = (uint8_t)str[char_idx];
-		++buckets[thread_offset + char_val];
-	}
-
-	uint64_t offset = 0;
-	for (size_t i = 0; i < 256; ++i) {
-		bucket_starts[i + thread_offset] = offset;
-		offset += buckets[i + thread_offset];
-	}
-
-	// temp
-	memcpy(temp_suffix_array, suffix_array, n * sizeof(uint32_t));
-
-	for (uint64_t i = 0; i < n; ++i) {
-		int char_idx = suffix_array[i] + current_depth;
-		uint8_t char_val = (uint8_t)str[char_idx];
-		temp_suffix_array[bucket_starts[char_val + thread_offset]] = suffix_array[i];
-		++bucket_starts[char_val + thread_offset];
-	}
-
-	memcpy(suffix_array, temp_suffix_array, n * sizeof(uint32_t));
-	*/
 	constexpr int NUM_BUCKETS 	   		= 256;
 	uint32_t _buckets[NUM_BUCKETS] 	    = {0};
 	uint32_t _bucket_starts[NUM_BUCKETS] = {0};
@@ -353,6 +324,12 @@ void recursive_bucket_sort(
 	if (current_depth == 0) {
 		#pragma omp parallel for schedule(guided)
 		for (int i = 0; i < 255; ++i) {
+
+			// Don't sort newline characters
+			if (skip_newline && (char)i == '\n') {
+				continue;
+			}
+
 			int bucket_start = _bucket_starts[i];
 			int bucket_end   = _bucket_starts[i + 1];
 			if (bucket_end - bucket_start <= 1) {
@@ -366,13 +343,18 @@ void recursive_bucket_sort(
 				string_length,
 				bucket_end - bucket_start,
 				max_depth,
-				current_depth + 1
+				current_depth + 1,
+				skip_newline
 			);
 		}
 		return;
 	}
 
 	for (int i = 0; i < 255; ++i) {
+		if (skip_newline && (char)i == '\n') {
+			continue;
+		}
+
 		int bucket_start = _bucket_starts[i];
 		int bucket_end   = _bucket_starts[i + 1];
 		if (bucket_end - bucket_start <= 1) {
@@ -386,7 +368,8 @@ void recursive_bucket_sort(
 			string_length,
 			bucket_end - bucket_start,
 			max_depth,
-			current_depth + 1
+			current_depth + 1,
+			skip_newline
 		);
 	}
 }
@@ -418,7 +401,8 @@ void construct_truncated_suffix_array(
 	const char* str,
 	std::vector<uint32_t>& suffix_array,
 	uint32_t n,
-	uint32_t max_suffix_length
+	uint32_t max_suffix_length,
+	bool skip_newline
 ) {
 
 	max_suffix_length = std::min(max_suffix_length, (uint32_t)n);
@@ -437,7 +421,8 @@ void construct_truncated_suffix_array(
 		n,
 		n,
 		max_suffix_length,
-		0
+		0,
+		skip_newline
 	);
 
 	free(temp_suffix_array);
