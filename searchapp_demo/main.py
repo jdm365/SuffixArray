@@ -116,8 +116,8 @@ if __name__ == '__main__':
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = os.path.join(CURRENT_DIR, './')
     ## FILENAME = 'companies_sorted_1M.csv'
-    FILENAME = 'people_data_labs_sample.csv'
-    ## FILENAME = 'companies_100M.csv'
+    ## FILENAME = 'people_data_labs_sample.csv'
+    FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
     search_app = SearchApp(

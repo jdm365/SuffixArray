@@ -31,6 +31,140 @@ inline uint64_t max(uint64_t a, uint64_t b) {
 	return a > b ? a : b;
 }
 
+inline void parse_line_v2(
+		const char* line,
+		std::vector<char>& text,
+		std::vector<uint32_t>& suffix_array_mapping,
+		uint64_t file_pos,
+		uint32_t column_idx
+		) {
+
+	uint32_t char_idx = 0;
+	uint32_t col_idx  = 0;
+
+	uint32_t line_length = strlen(line);
+	bool first_in_col = true;
+
+	__m128i comma_mask   = _mm_set1_epi8(',');
+	__m128i newline_mask = _mm_set1_epi8('\n');
+	__m128i quote_mask   = _mm_set1_epi8('"');
+	__m128i escape_mask = _mm_set1_epi8('\\');
+
+	__m128i zero = _mm_setzero_si128();
+
+	while (col_idx < column_idx) {
+		__m128i line_v = _mm_loadu_si128((__m128i*)(line + char_idx));
+		__m128i comma_cmp = _mm_cmpeq_epi8(line_v, comma_mask);
+		__m128i newline_cmp = _mm_cmpeq_epi8(line_v, newline_mask);
+		__m128i quote_cmp = _mm_cmpeq_epi8(line_v, quote_mask);
+		__m128i escape_cmp = _mm_cmpeq_epi8(line_v, escape_mask);
+
+		__m128i comma_masked = _mm_and_si128(comma_cmp, _mm_cmplt_epi8(zero, line_v));
+		__m128i newline_masked = _mm_and_si128(newline_cmp, _mm_cmplt_epi8(zero, line_v));
+		__m128i quote_masked = _mm_and_si128(quote_cmp, _mm_cmplt_epi8(zero, line_v));
+		__m128i escape_masked = _mm_and_si128(escape_cmp, _mm_cmplt_epi8(zero, line_v));
+
+		__m128i mask = _mm_or_si128(
+			_mm_or_si128(
+				_mm_or_si128(comma_masked, newline_masked),
+				quote_masked
+			),
+			escape_masked
+		);
+
+		uint32_t mask_int = _mm_movemask_epi8(mask);
+		if (mask_int != 0) {
+			uint32_t idx = __builtin_ctz(mask_int);
+			char_idx += idx + 1;
+			++col_idx;
+			first_in_col = true;
+			continue;
+		}
+
+		char_idx += 16;
+	}
+
+	first_in_col = true;
+
+	for (; char_idx < line_length;) {
+		__m128i line_v      = _mm_loadu_si128((__m128i*)(line + char_idx));
+		__m128i comma_cmp   = _mm_cmpeq_epi8(line_v, comma_mask);
+		__m128i newline_cmp = _mm_cmpeq_epi8(line_v, newline_mask);
+		__m128i quote_cmp   = _mm_cmpeq_epi8(line_v, quote_mask);
+		__m128i escape_cmp  = _mm_cmpeq_epi8(line_v, escape_mask);
+
+		__m128i comma_masked   = _mm_and_si128(comma_cmp,   _mm_cmplt_epi8(zero, line_v));
+		__m128i newline_masked = _mm_and_si128(newline_cmp, _mm_cmplt_epi8(zero, line_v));
+		__m128i quote_masked   = _mm_and_si128(quote_cmp,   _mm_cmplt_epi8(zero, line_v));
+		__m128i escape_masked  = _mm_and_si128(escape_cmp,  _mm_cmplt_epi8(zero, line_v));
+
+		__m128i mask = _mm_or_si128(
+			_mm_or_si128(
+				_mm_or_si128(comma_masked, newline_masked),
+				quote_masked
+			),
+			escape_masked
+		);
+
+		uint32_t mask_int = _mm_movemask_epi8(mask);
+		if (mask_int != 0) {
+			uint32_t idx = __builtin_ctz(mask_int);
+			char_idx += idx + 1;
+			break;
+		}
+
+		__m128i text_v = _mm_and_si128(line_v, _mm_set1_epi8(0xDF));
+		__m128i suffix_v = _mm_set1_epi32(file_pos + char_idx);
+
+		_mm_storeu_si128((__m128i*)(text.data() + text.size()), text_v);
+		_mm_storeu_si128((__m128i*)(suffix_array_mapping.data() + suffix_array_mapping.size()), suffix_v);
+
+		text.push_back(tolower(line[char_idx]));
+		suffix_array_mapping.push_back(file_pos + char_idx);
+		++char_idx;
+
+		first_in_col = false;
+	}
+
+	/*
+	while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
+		if (line[char_idx] == '\\') {
+			++char_idx;
+			text.push_back(tolower(line[char_idx]));
+			suffix_array_mapping.push_back(file_pos + char_idx);
+			++char_idx;
+
+			first_in_col = false;
+			continue;
+		}
+		if (line[char_idx] == '"' && first_in_col) {
+			first_in_col = false;
+
+			++char_idx;
+			while (line[char_idx] != '"') {
+				if (char_idx >= line_length) {
+					return;
+				}
+				text.push_back(tolower(line[char_idx]));
+				suffix_array_mapping.push_back(file_pos + char_idx);
+				++char_idx;
+			}
+			++char_idx;
+			continue;
+		}
+
+		text.push_back(tolower(line[char_idx]));
+		suffix_array_mapping.push_back(file_pos + char_idx);
+		++char_idx;
+
+		first_in_col = false;
+	}
+	*/
+
+	text.push_back('\n');
+	suffix_array_mapping.push_back(file_pos + char_idx);
+}
+
 inline void parse_line(
 		const char* line,
 		std::vector<char>& text,
@@ -164,9 +298,6 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	std::vector<uint32_t> suffix_array_mapping;
 	suffix_array_mapping.reserve(num_lines * max_suffix_length);
 
-	printf("Start idx: %lu\n", start_idx);
-	fflush(stdout);
-
 	while (
 			((read = getline(&line, &len, file)) != -1)
 				&& 
@@ -190,8 +321,6 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	fclose(file);
 
 	end_idx = file_pos;
-	printf("End idx: %lu\n", end_idx);
-	fflush(stdout);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;
