@@ -4,7 +4,8 @@
   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
   <link rel="shortcut icon" type="image/ico" href="favicon.ico" />
   <title>Search</title>
-  <link rel="stylesheet" href="SlickGrid/dist/styles/css/slick-alpine-theme.css" type="text/css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/6pac/SlickGrid/dist/styles/css/slick-alpine-theme.css" type="text/css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/6pac/SlickGrid/examples/examples.css" type="text/css"/>
 </head>
 <body>
 
@@ -23,16 +24,21 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs/Sortable.min.js"></script>
 <script src="sortable-cdn-fallback.js"></script>
 
-<script src="SlickGrid/dist/browser/slick.core.js"></script>
-<script src="SlickGrid/dist/browser/slick.interactions.js"></script>
-<script src="SlickGrid/dist/browser/slick.grid.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/6pac/SlickGrid/dist/browser/slick.core.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/6pac/SlickGrid/dist/browser/slick.interactions.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/6pac/SlickGrid/dist/browser/slick.grid.js"></script>
+<style>
+    .highlight {
+      	background-color: orange;
+    }
+</style>
 
 <script>
 	var grid;
 
 	var options = {
-	enableCellNavigation: true,
-	enableColumnReorder: false
+		enableCellNavigation: true,
+		enableColumnReorder: true
 	};
 
 	var data = [];
@@ -49,6 +55,14 @@
 			.then(response => response.json())
 			.then(data => updateGrid(data));
 	}
+
+	function highlightMatchingText(row, cell, value, columnDef, dataContext) {
+        var query = document.getElementById('search_box').value.trim();
+        if (!query || typeof value !== 'string') return value;
+
+        var regex = new RegExp('(' + query + ')', 'gi');
+        return value.replace(regex, '<span class="highlight">$1</span>');
+    }
 
 	function updateGrid(results) {
 		// Update metadata
@@ -70,7 +84,8 @@
 					id: column,
 					name: column,
 					field: column,
-					width: columnWidth
+					width: columnWidth,
+					formatter: highlightMatchingText
 				};
 			});
 		}

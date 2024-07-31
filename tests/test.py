@@ -64,11 +64,11 @@ def test_suffix_array_document_constructor(csv_file: str, search_col: str):
     rand_companies = [x for x in companies.sample(N)]
     list_companies = companies.to_list()
 
-    init = perf_counter()
     suffix_array = SuffixArray(
-            documents=list_companies, 
             max_suffix_length=32
             )
+    init = perf_counter()
+    suffix_array.construct_truncated_suffix_array_documents(documents=list_companies)
     index_creation_time = perf_counter() - init
 
     times = []
@@ -78,7 +78,6 @@ def test_suffix_array_document_constructor(csv_file: str, search_col: str):
     for company in rand_companies:
         _init = perf_counter()
         vals = suffix_array.query_records_2(company)
-        print(vals)
         time = (perf_counter() - _init) * 1e6
         times.append(time)
         num_results.append(len(vals))
@@ -130,9 +129,9 @@ def plot_query_times(query_times, number_of_results, outlier_stddev_threshold=3)
 if __name__ == '__main__':
     DATA_DIR = '/home/jdm365/SearchApp/data'
 
-    FILENAME = 'companies_sorted_100M.csv'
+    ## FILENAME = 'companies_sorted_100M.csv'
     ## FILENAME = 'companies_sorted.csv'
-    ## FILENAME = 'companies_sorted_1M.csv'
+    FILENAME = 'companies_sorted_1M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
     test_pysubstring_search(FILEPATH, 'name')

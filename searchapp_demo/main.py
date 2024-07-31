@@ -2,9 +2,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 import os
-import sys
+import polars as pl
 from time import perf_counter
-from suffix_array import SuffixArray
+from suffix_array import SuffixArrayEngine
 import json
 import csv
 from functools import lru_cache
@@ -24,18 +24,6 @@ def search():
     time_taken_ms = int(1e3) * (perf_counter() - init)
     return jsonify({'results': results, 'time_taken_ms': time_taken_ms})
 
-@app.route('/columns', methods=['GET'])
-def columns():
-    column_names = search_app.column_names
-    ## Reorder to put search col first
-    column_names.remove(search_app.search_col)
-    column_names.insert(0, search_app.search_col)
-    return jsonify({'columns': column_names})
-
-@app.route('/search_col', methods=['GET'])
-def search_col():
-    return jsonify({'search_col': search_app.search_col})
-
 
 class SearchApp:
     def __init__(self, csv_filename: str) -> None:
@@ -45,12 +33,20 @@ class SearchApp:
         self.csv_filename = csv_filename
         self.column_names = self.get_column_names()
 
-        self.reader = SuffixArray(max_suffix_length=32)
+        self.reader = SuffixArrayEngine(max_suffix_length=32)
 
+        '''
         init = perf_counter()
         self.reader.construct_truncated_suffix_array_from_csv(
                 filename=self.csv_filename,
                 search_column="name"
+                )
+        print(f'Building suffix array took {perf_counter() - init:.2f} seconds')
+        '''
+        init = perf_counter()
+        self.reader.construct_truncated_suffix_array_from_csv(
+                filename=self.csv_filename,
+                search_column=self.search_col
                 )
         print(f'Building suffix array took {perf_counter() - init:.2f} seconds')
 
@@ -92,7 +88,7 @@ class SearchApp:
 
     @lru_cache(maxsize=16)
     def get_search_results(self, query: str) -> list:
-        query = query.upper()
+        query = query.lower()
         if len(query) == 0:
             return []
         init = perf_counter()
@@ -114,16 +110,16 @@ class SearchApp:
 if __name__ == '__main__':
     ## DATA_DIR = '/home/jdm365/SearchApp/data'
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_DIR = os.path.join(CURRENT_DIR, './')
-    ## FILENAME = 'companies_sorted_1M.csv'
+    DATA_DIR = CURRENT_DIR
+    FILENAME = 'companies_sorted_1M.csv'
     ## FILENAME = 'people_data_labs_sample.csv'
-    FILENAME = 'companies_100M.csv'
+    ## FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
     search_app = SearchApp(
             csv_filename=FILEPATH,
             )
 
-    os.system(f"open {os.path.join(CURRENT_DIR, 'index.html')}")
+    ## os.system(f"open {os.path.join(CURRENT_DIR, 'index.html')}")
 
     app.run()

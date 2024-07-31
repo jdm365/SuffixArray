@@ -1,4 +1,4 @@
-# SuffixArray 
+# SuffixArray (In Development)
 Truncated SuffixArray based substring search index algorithm written in c++ and exposed through cython.
 Typical query times range from microseconds to milliseconds even on tens or hundreds of millions of items.
 **More comprehensive benchmarks to come as package get's more fleshed out.

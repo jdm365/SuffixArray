@@ -1,11 +1,9 @@
-## CXX = g++
-CXX = clang++
-CXXFLAGS = -std=c++17 -Wall -Wextra -Werror
-CXXFLAGS += -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field
-CXXFLAGS += -O3 -march=native -mtune=native -ffast-math -funroll-loops -fomit-frame-pointer -fno-exceptions -fno-rtti
-SRCS = suffix_array/engine.cpp suffix_array/main.cpp
+CC = gcc
+CFLAGS = -std=c11
+CFLAGS += -O3 -march=native -mtune=native -ffast-math -funroll-loops
+CFLAGS += -Wno-unused-result -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable
+SRCS   = suffix_array/engine.c suffix_array/main.c suffix_array/libsais.c suffix_array/libsais64.c
 INCLUDES = -I./suffix_array
-## OBJS = $(SRCS:.cpp=.o)
 LIBS = -lc++ -lc++abi -L/usr/local/lib -lm -L./suffix_array
 TARGET = bin/release/suffix_array
 
@@ -15,18 +13,14 @@ else
 	LDFLAGS += -fopenmp
 endif
 
-ifeq ($(CXX),clang++)
-	CXXFLAGS += -stdlib=libc++
-endif
-
 all: install clean
 
 run:
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(SRCS) $(LIBS) -o $(TARGET)
+	$(CC) $(CFLAGS) $(INCLUDES) $(LDFLAGS) $(SRCS) $(LIBS) -o $(TARGET)
 	./$(TARGET)
 
 profile:
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) -o $(TARGET) $(SRCS) $(LIBS) -pg
+	$(CC) $(CFLAGS) $(INCLUDES) $(LDFLAGS) -o $(TARGET) $(SRCS) $(LIBS) -pg
 	./$(TARGET)
 	gprof $(TARGET) gmon.out > analysis.txt
 

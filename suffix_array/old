@@ -2,15 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <omp.h>
-
-#include <vector>
-#include <algorithm>
-#include <utility>
-#include <chrono>
-
 #include <immintrin.h>
-#include "robin_hood.h"
+#include <ctype.h>
+#include <omp.h>
 
 #include "engine.h"
 
@@ -31,6 +25,55 @@ inline uint64_t max(uint64_t a, uint64_t b) {
 	return a > b ? a : b;
 }
 
+static inline ssize_t rfc4180_getline(char** lineptr, size_t* n, FILE* stream) {
+    if (lineptr == nullptr || n == nullptr || stream == nullptr) {
+        return -1;
+    }
+
+    size_t len = 0;
+    int c;
+    int in_quotes = 0;
+
+    if (*lineptr == nullptr) {
+        *n = 128;
+        *lineptr = (char *)malloc(*n);
+        if (*lineptr == nullptr) {
+            return -1;
+        }
+    }
+
+    while ((c = fgetc(stream)) != EOF) {
+        if (len + 1 >= *n) {
+            *n *= 2;
+            char *new_lineptr = (char *)realloc(*lineptr, *n);
+            if (new_lineptr == nullptr) {
+                return -1;
+            }
+            *lineptr = new_lineptr;
+        }
+
+        (*lineptr)[len++] = c;
+
+        if (c == '"') {
+            in_quotes = !in_quotes;
+        } else if (c == '\n' && !in_quotes) {
+            break;
+        }
+    }
+
+    if (ferror(stream)) {
+        return -1;
+    }
+
+    if (len == 0 && c == EOF) {
+        return -1;
+    }
+
+    (*lineptr)[len] = '\0';
+    return len;
+}
+
+/*
 inline void parse_line_v2(
 		const char* line,
 		std::vector<char>& text,
@@ -43,7 +86,7 @@ inline void parse_line_v2(
 	uint32_t col_idx  = 0;
 
 	uint32_t line_length = strlen(line);
-	bool first_in_col = true;
+	// bool first_in_col = true;
 
 	__m128i comma_mask   = _mm_set1_epi8(',');
 	__m128i newline_mask = _mm_set1_epi8('\n');
@@ -77,14 +120,14 @@ inline void parse_line_v2(
 			uint32_t idx = __builtin_ctz(mask_int);
 			char_idx += idx + 1;
 			++col_idx;
-			first_in_col = true;
+			// first_in_col = true;
 			continue;
 		}
 
 		char_idx += 16;
 	}
 
-	first_in_col = true;
+	// first_in_col = true;
 
 	for (; char_idx < line_length;) {
 		__m128i line_v      = _mm_loadu_si128((__m128i*)(line + char_idx));
@@ -123,52 +166,20 @@ inline void parse_line_v2(
 		suffix_array_mapping.push_back(file_pos + char_idx);
 		++char_idx;
 
-		first_in_col = false;
+		// first_in_col = false;
 	}
 
-	/*
-	while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
-		if (line[char_idx] == '\\') {
-			++char_idx;
-			text.push_back(tolower(line[char_idx]));
-			suffix_array_mapping.push_back(file_pos + char_idx);
-			++char_idx;
-
-			first_in_col = false;
-			continue;
-		}
-		if (line[char_idx] == '"' && first_in_col) {
-			first_in_col = false;
-
-			++char_idx;
-			while (line[char_idx] != '"') {
-				if (char_idx >= line_length) {
-					return;
-				}
-				text.push_back(tolower(line[char_idx]));
-				suffix_array_mapping.push_back(file_pos + char_idx);
-				++char_idx;
-			}
-			++char_idx;
-			continue;
-		}
-
-		text.push_back(tolower(line[char_idx]));
-		suffix_array_mapping.push_back(file_pos + char_idx);
-		++char_idx;
-
-		first_in_col = false;
-	}
-	*/
 
 	text.push_back('\n');
 	suffix_array_mapping.push_back(file_pos + char_idx);
 }
+*/
 
 inline void parse_line(
 		const char* line,
-		std::vector<char>& text,
-		std::vector<uint32_t>& suffix_array_mapping,
+		buffer_bit* is_quoted_bitflag,
+		buffer_c* text,
+		buffer_u32* suffix_array_mapping,
 		uint64_t file_pos,
 		uint32_t column_idx
 		) {
@@ -177,100 +188,188 @@ inline void parse_line(
 	uint32_t col_idx  = 0;
 
 	uint32_t line_length = strlen(line);
-	bool first_in_col = true;
 
-	while (col_idx < column_idx) {
-		if (line[char_idx] == '\\') {
-			char_idx += 2;
-			first_in_col = false;
-			continue;
+	uint16_t _search_col_idx = 0;
+
+	// Iterate of line chars until we get to relevant column.
+	while (col_idx != column_idx) {
+		if (line[char_idx] == '\n') {
+			printf("Newline found before end.\n");
+			printf("Search col idx: %d\n", column_idx);
+			printf("Col idx: %d\n", col_idx);
+			printf("Char idx: %d\n", char_idx);
+			printf("Line: %s", line);
+			exit(1);
 		}
 
-		if (line[char_idx] == '"' && first_in_col) {
-			first_in_col = false;
+		if (line[char_idx] == '"') {
+			// Skip to next unescaped quote
 			++char_idx;
-			while (line[char_idx] != '"') {
-				++char_idx;
-				if (char_idx >= line_length) {
-					/*
-					printf("Error: Invalid CSV format\n");
-					printf("Line: %s\n\n", line);
-					printf("File position: %lu\n", file_pos);
-					*/
-					return;
-					// exit(1);
+
+			while (1) {
+				if (line[char_idx] == '"') {
+					if (line[char_idx + 1] == '"') {
+						char_idx += 2;
+						continue;
+					} 
+					else {
+						++char_idx;
+						break;
+					}
 				}
+				++char_idx;
 			}
-			++char_idx;
 		}
-		if (line[char_idx] == ',') {
-			++col_idx;
-			first_in_col = true;
-		} else {
-			first_in_col = false;
-		}
+
+		if (line[char_idx] == ',') ++col_idx;
 		++char_idx;
 	}
 
-	first_in_col = true;
+	bool quoted_field = (line[char_idx] == '"');
 
-	while (line[char_idx] != '\n' && line[char_idx] != '\0' && line[char_idx] != ',') {
-		if (line[char_idx] == '\\') {
-			++char_idx;
-			text.push_back(tolower(line[char_idx]));
-			suffix_array_mapping.push_back(file_pos + char_idx);
-			++char_idx;
 
-			first_in_col = false;
-			continue;
-		}
-		if (line[char_idx] == '"' && first_in_col) {
-			first_in_col = false;
-
-			++char_idx;
-			while (line[char_idx] != '"') {
-				if (char_idx >= line_length) {
-					/*
-					printf("Error: Invalid CSV format\n");
-					printf("Line: %s\n\n", line);
-					printf("File position: %lu\n", file_pos);
-					*/
-					return;
-					// exit(1);
-				}
-				text.push_back(tolower(line[char_idx]));
-				suffix_array_mapping.push_back(file_pos + char_idx);
-				++char_idx;
+	if (quoted_field) {
+		while (true) {
+			if (char_idx > 1048576) {
+				printf("Error: Column not found.\n");
+				std::exit(1);
 			}
+
+			if (line[char_idx] == '"' && line[char_idx + 1] == '"') {
+				append_buffer_c(text, tolower(line[char_idx]));
+				append_buffer_u32(suffix_array_mapping, file_pos + char_idx);
+				append_buffer_bit(is_quoted_bitflag, 1);
+				char_idx += 2;
+				continue;
+			}
+
+			if (
+					line[char_idx] == '"' 
+						&& 
+					(
+						line[char_idx + 1] == '\n' 
+							|| 
+						line[char_idx + 1] == ',' 
+							|| 
+						line[char_idx + 1] == '\0' 
+					)
+				) {
+				++char_idx;
+				break;
+			}
+
+			append_buffer_c(text, tolower(line[char_idx]));
+			append_buffer_u32(suffix_array_mapping, file_pos + char_idx);
+			append_buffer_bit(is_quoted_bitflag, 1);
 			++char_idx;
-			continue;
 		}
+	} else {
+		while (true) {
+			if (char_idx > 1048576) {
+				printf("Error: Column not found.\n");
+				std::exit(1);
+			}
 
-		text.push_back(tolower(line[char_idx]));
-		suffix_array_mapping.push_back(file_pos + char_idx);
-		++char_idx;
+			if (line[char_idx] == '\n' || line[char_idx] == '\0' || line[char_idx] == ',') {
+				break;
+			}
 
-		first_in_col = false;
+			append_buffer_c(text, tolower(line[char_idx]));
+			append_buffer_u32(suffix_array_mapping, file_pos + char_idx);
+			append_buffer_bit(is_quoted_bitflag, 0);
+			++char_idx;
+		}
 	}
 
-	text.push_back('\n');
-	suffix_array_mapping.push_back(file_pos + char_idx);
+	append_buffer_c(text, '\n');
+	append_buffer_u32(suffix_array_mapping, file_pos + char_idx);
+	append_buffer_bit(is_quoted_bitflag, (uint8_t)quoted_field);
+}
+
+void init_buffer_c(buffer_c* buffer, uint32_t buffer_capacity) {
+	buffer->buffer_capacity = buffer_capacity;
+	buffer->buffer_idx = 0;
+	buffer->buffer = (char*)malloc(buffer_capacity);
+}
+
+void append_buffer_c(buffer_c* buffer, char c) {
+	if (buffer->buffer_idx == buffer->buffer_capacity) {
+		buffer->buffer_capacity *= 2;
+		buffer->buffer = (char*)realloc(buffer->buffer, buffer->buffer_capacity);
+	}
+
+	buffer->buffer[buffer->buffer_idx++] = c;
+}
+
+void free_buffer_c(buffer_c* buffer) {
+	free(buffer->buffer);
+}
+
+
+void init_buffer_u32(buffer_u32* buffer, uint32_t buffer_capacity) {
+	buffer->buffer_capacity = buffer_capacity;
+	buffer->buffer_idx = 0;
+	buffer->buffer = (uint32_t*)malloc(buffer_capacity * sizeof(uint32_t));
+}
+
+void append_buffer_u32(buffer_u32* buffer, uint32_t c) {
+	if (buffer->buffer_idx == buffer->buffer_capacity) {
+		buffer->buffer_capacity *= 2;
+		buffer->buffer = (uint32_t*)realloc(
+				buffer->buffer, 
+				buffer->buffer_capacity * sizeof(uint32_t)
+				);
+	}
+
+	buffer->buffer[buffer->buffer_idx++] = c;
+}
+
+void free_buffer_u32(buffer_u32* buffer) {
+	free(buffer->buffer);
+}
+
+
+void init_buffer_bit(buffer_bit* buffer, uint32_t buffer_capacity) {
+	buffer->buffer_capacity = buffer_capacity;
+	buffer->buffer_bit_idx = 0;
+	buffer->buffer = (uint8_t*)malloc(buffer_capacity);
+}
+
+void append_buffer_bit(buffer_bit* buffer, uint8_t c) {
+	uint32_t byte_idx = buffer->buffer_bit_idx / 8;
+	uint32_t bit_idx  = buffer->buffer_bit_idx % 8;
+
+	if (byte_idx == buffer->buffer_capacity) {
+		buffer->buffer_capacity *= 2;
+		buffer->buffer = (uint8_t*)realloc(buffer->buffer, buffer->buffer_capacity);
+	}
+
+	buffer->buffer[byte_idx] |= c << bit_idx;
+	++(buffer->buffer_bit_idx);
+}
+
+uint8_t get_buffer_bit(buffer_bit* buffer, uint32_t idx) {
+	uint32_t byte_idx = idx / 8;
+	uint32_t bit_idx  = idx % 8;
+
+	return (buffer->buffer[byte_idx] >> bit_idx) & 1;
+}
+
+void free_buffer_bit(buffer_bit* buffer) {
+	free(buffer->buffer);
 }
 
 
 void construct_truncated_suffix_array_from_csv_partitioned(
 	const char* csv_file,
 	uint32_t column_idx,
-	std::vector<uint32_t>& suffix_array,
-	uint32_t* suffix_array_size,
-	uint32_t max_suffix_length,
-	uint64_t start_idx,
-	uint64_t& end_idx,
-	bool skip_newline
+	SuffixArray* suffix_array
 ) {
+
 	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
 
-	auto start = std::chrono::high_resolution_clock::now();
+	// TODO: Adjust for multithreading correctness.
+	clock_t start = clock();
 
 	// Read and parse the CSV file.
 	FILE* file = fopen(csv_file, "r");
@@ -279,37 +378,33 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 		exit(1);
 	}
 
-	uint32_t max_line_length = 1024;
-
 	char*    line = NULL;
 	uint64_t len = 0;
 	ssize_t  read;
-	uint64_t file_pos = start_idx;
+	uint64_t file_pos = suffix_array->global_byte_start_idx;
 	uint64_t bytes_read = 0;
 
-	uint64_t line_0_size = getline(&line, &len, file);
+	uint32_t num_lines_guess = TWO_GB / (suffix_array->max_suffix_length * 8);
+	uint32_t num_bytes_guess = num_lines_guess * suffix_array->max_suffix_length;
+	fseek(file, suffix_array->global_byte_start_idx, SEEK_SET);
 
-	uint64_t num_lines = TWO_GB / line_0_size;
-	fseek(file, start_idx, SEEK_SET);
+	buffer_c text;
+	init_buffer_c(&text, num_bytes_guess);
 
-	std::vector<char> text;
-	text.reserve(num_lines * max_suffix_length);
-
-	std::vector<uint32_t> suffix_array_mapping;
-	suffix_array_mapping.reserve(num_lines * max_suffix_length);
+	buffer_u32 suffix_array_mapping;
+	init_buffer_u32(&suffix_array_mapping, num_bytes_guess);
 
 	while (
-			((read = getline(&line, &len, file)) != -1)
+			((read = rfc4180_getline(&line, &len, file)) != -1)
 				&& 
 			(bytes_read < TWO_GB)
 			) {
-		if (read > max_line_length) max_line_length = read;
 
 		parse_line(
 			line,
-			text,
-			suffix_array_mapping,
-			// file_pos,
+			suffix_array->is_quoted_bitflag,
+			&text,
+			&suffix_array_mapping,
 			bytes_read,
 			column_idx
 		);
@@ -320,29 +415,27 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 
 	fclose(file);
 
-	end_idx = file_pos;
+	suffix_array->global_byte_end_idx = file_pos;
 
-	auto end = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> elapsed = end - start;
-	printf("Time to read and parse CSV: %f\n", elapsed.count());
-	printf("Mb/s: %f\n", (double)bytes_read / (1024 * 1024) / elapsed.count());
+	clock_t end = clock();
+	double elapsed = ((double)end - start) / CLOCKS_PER_SEC;
+	printf("Time to read and parse CSV: %f\n", elapsed);
+	printf("Mb/s: %f\n", (double)bytes_read / (1024 * 1024) / elapsed);
 
-	*suffix_array_size = text.size();
-	suffix_array.resize(*suffix_array_size);
 
-	construct_truncated_suffix_array(
-		text.data(),
-		suffix_array,
-		*suffix_array_size,
-		max_suffix_length,
-		skip_newline
-	);
+	suffix_array->n = suffix_array_mapping.buffer_idx;
+	suffix_array->suffix_array = (uint32_t*)malloc(suffix_array->n * sizeof(uint32_t));
+
+	construct_truncated_suffix_array(text.buffer, suffix_array);
+	free_buffer_c(&text);
 
 	// Remap suffix array indices to original file positions.
 	#pragma omp parallel for
-	for (uint32_t i = 0; i < *suffix_array_size; ++i) {
-		suffix_array[i] = suffix_array_mapping[suffix_array[i]];
+	for (uint32_t i = 0; i < suffix_array->n; ++i) {
+		suffix_array->suffix_array[i] = suffix_array_mapping.buffer[suffix_array->suffix_array[i]];
 	}
+
+	free_buffer_u32(&suffix_array_mapping);
 }
 
 static inline int strncmp_128(const char* str1, const char* str2, uint64_t n) {
@@ -390,8 +483,7 @@ void recursive_bucket_sort(
 	int string_length,
 	uint64_t n,
 	int max_depth,
-	int current_depth,
-	bool skip_newline
+	int current_depth
 ) {
 	// Base case
 	if (current_depth == max_depth) {
@@ -414,8 +506,8 @@ void recursive_bucket_sort(
 	// Do bucket sort of first char. Then in each bucket, skip
 	// current_depth chars and do bucket sort of next char.
 
-	constexpr int NUM_BUCKETS 	   		= 256;
-	uint32_t _buckets[NUM_BUCKETS] 	    = {0};
+	constexpr int NUM_BUCKETS 	   		 = 256;
+	uint32_t _buckets[NUM_BUCKETS] 	     = {0};
 	uint32_t _bucket_starts[NUM_BUCKETS] = {0};
 
 	for (uint64_t i = 0; i < n; ++i) {
@@ -430,7 +522,6 @@ void recursive_bucket_sort(
 		offset += _buckets[i];
 	}
 
-	// temp
 	memcpy(temp_suffix_array, suffix_array, n * sizeof(uint32_t));
 
 	for (uint64_t i = 0; i < n; ++i) {
@@ -453,12 +544,6 @@ void recursive_bucket_sort(
 	if (current_depth == 0) {
 		#pragma omp parallel for schedule(guided)
 		for (int i = 0; i < 255; ++i) {
-
-			// Don't sort newline characters
-			if (skip_newline && (char)i == '\n') {
-				continue;
-			}
-
 			int bucket_start = _bucket_starts[i];
 			int bucket_end   = _bucket_starts[i + 1];
 			if (bucket_end - bucket_start <= 1) {
@@ -472,18 +557,13 @@ void recursive_bucket_sort(
 				string_length,
 				bucket_end - bucket_start,
 				max_depth,
-				current_depth + 1,
-				skip_newline
+				current_depth + 1
 			);
 		}
 		return;
 	}
 
 	for (int i = 0; i < 255; ++i) {
-		if (skip_newline && (char)i == '\n') {
-			continue;
-		}
-
 		int bucket_start = _bucket_starts[i];
 		int bucket_end   = _bucket_starts[i + 1];
 		if (bucket_end - bucket_start <= 1) {
@@ -497,8 +577,7 @@ void recursive_bucket_sort(
 			string_length,
 			bucket_end - bucket_start,
 			max_depth,
-			current_depth + 1,
-			skip_newline
+			current_depth + 1
 		);
 	}
 }
@@ -526,55 +605,55 @@ void read_text_into_buffer(
 	fclose(file);
 }
 
-void construct_truncated_suffix_array(
-	const char* str,
-	std::vector<uint32_t>& suffix_array,
-	uint32_t n,
-	uint32_t max_suffix_length,
-	bool skip_newline
-) {
+void construct_truncated_suffix_array(const char* str, SuffixArray* suffix_array) {
+	clock_t start = clock();
 
-	max_suffix_length = std::min(max_suffix_length, (uint32_t)n);
-	alignas(64) uint32_t* temp_suffix_array = (uint32_t*)malloc(n * sizeof(uint32_t));
+	uint32_t _max_suffix_length = std::min(suffix_array->max_suffix_length, suffix_array->n);
+	alignas(64) uint32_t* temp_suffix_array = (uint32_t*)malloc(suffix_array->n * sizeof(uint32_t));
 
 	// Construct simple suffix array from str
 	#pragma omp parallel for
-	for (uint64_t i = 0; i < n; ++i) {
-		suffix_array[i] = i;
+	for (uint64_t i = 0; i < suffix_array->n; ++i) {
+		suffix_array->suffix_array[i] = i;
 	}
 
 	recursive_bucket_sort(
 		str,
-		suffix_array.data(),
+		suffix_array->suffix_array,
 		temp_suffix_array,
-		n,
-		n,
-		max_suffix_length,
-		0,
-		skip_newline
+		suffix_array->n,
+		suffix_array->n,
+		suffix_array->max_suffix_length,
+		0
 	);
 
 	free(temp_suffix_array);
+
+	clock_t end = clock();
+	double elapsed = ((double)end - start) / CLOCKS_PER_SEC;
+	printf("Time to construct suffix array: %f\n", elapsed);
 }
 
 
-std::pair<uint32_t, uint32_t> get_substring_positions(
+pair_u32 get_substring_positions(
     const char* str,
-    uint32_t* suffix_array,
-    uint64_t n,
+    const SuffixArray* suffix_array,
     const char* substring
 ) {
-    int64_t m = strlen(substring);
+    int64_t m 	  = strlen(substring);
     int64_t first = 0;
-    int64_t last = n - 1;
+    int64_t last  = suffix_array->n - 1;
+
     int64_t start = -1;
-	int64_t end = -1;
+	int64_t end   = -1;
+
+	int64_t cmp_length = min(m, suffix_array->max_suffix_length);
 
     // Binary search for the first occurrence of the substring
     while (first <= last) {
         int64_t mid = (first + last) / 2;
-        if (strncmp(str + suffix_array[mid], substring, m) < 0) {
-        // if (strncmp_128(str + suffix_array[mid], substring, m) < 0) {
+        if (strncmp(str + suffix_array->suffix_array[mid], substring, cmp_length) < 0) {
+        // if (strncmp_128(str + suffix_array[mid], substring, cmp_length) < 0) {
             first = mid + 1;
         }
         else {
@@ -584,15 +663,16 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
     }
 
     if (start == -1) {
-        return std::make_pair(-1, -1);
+        return {UINT32_MAX, UINT32_MAX};
     }
 
     // Reset for searching the last occurrence
-    first = 0, last = n - 1;
+    first = 0;
+	last  = suffix_array->n - 1;
     while (first <= last) {
         int64_t mid = (first + last) / 2;
-        if (strncmp(str + suffix_array[mid], substring, m) > 0) {
-        // if (strncmp_128(str + suffix_array[mid], substring, m) > 0) {
+        if (strncmp(str + suffix_array->suffix_array[mid], substring, cmp_length) > 0) {
+        // if (strncmp_128(str + suffix_array[mid], substring, cmp_length) > 0) {
             last = mid - 1;
         }
         else {
@@ -601,130 +681,135 @@ std::pair<uint32_t, uint32_t> get_substring_positions(
         }
     }
 
-	return std::make_pair(start, end);
+	return {(uint32_t)start, (uint32_t)end};
 }
 
-std::pair<uint64_t, uint64_t> get_substring_positions_file(
+pair_u32 get_substring_positions_file(
 	FILE* file,
-    uint64_t byte_offset,
-    uint32_t* suffix_array,
-    uint32_t n,
+	const SuffixArray* suffix_array,
     const char* substring
 ) {
-    int64_t m = strlen(substring);
-    int64_t first = 0;
-    int64_t last = n - 1;
+    uint32_t m 	   = strlen(substring);
+    uint32_t first = 0;
+    uint32_t last  = suffix_array->n - 1;
 
-    int64_t start = -1;
-	int64_t end = -1;
+    uint32_t start = UINT32_MAX;
+	uint32_t end   = UINT32_MAX;
 
-	char* line = NULL;
-	line = (char*)malloc(32 * sizeof(char));
+	uint32_t cmp_length = min(m, suffix_array->max_suffix_length);
+
+	char* line = (char*)malloc(cmp_length * sizeof(char));
 
     // Binary search for the first occurrence of the substring
     while (first <= last) {
-        int64_t mid = (first + last) / 2;
-		fseek(file, byte_offset + (uint64_t)suffix_array[mid], SEEK_SET);
-		fread(line, 1, 32, file);
+        uint32_t mid = (first + last) / 2;
+		fseek(
+				file,
+				suffix_array->global_byte_start_idx + (uint64_t)suffix_array->suffix_array[mid],
+				SEEK_SET
+				);
+		fread(line, 1, cmp_length, file);
 
-		for (int i = 0; i < 32; ++i) {
+		for (uint32_t i = 0; i < cmp_length; ++i) {
 			line[i] = tolower(line[i]);
 		}
 
-        if (strncmp(line, substring, m) < 0) {
-        // if (strncmp_128(str + suffix_array[mid], substring, m) < 0) {
+        if (strncmp(line, substring, cmp_length) < 0) {
+        // if (strncmp_128(line, substring, cmp_length) < 0) {
             first = mid + 1;
         }
         else {
-            last = mid - 1;
+            last  = mid - 1;
             start = mid;
         }
     }
 
-    if (start == -1) {
-        return std::make_pair(UINT32_MAX, UINT32_MAX);
+    if (start == UINT32_MAX) {
+        return {UINT32_MAX, UINT32_MAX};
     }
 
     // Reset for searching the last occurrence
-    first = 0, last = n - 1;
+    first = 0;
+	last  = suffix_array->n - 1;
     while (first <= last) {
-        int64_t mid = (first + last) / 2;
-		fseek(file, byte_offset + (uint64_t)suffix_array[mid], SEEK_SET);
-		fread(line, 1, 32, file);
+        uint32_t mid = (first + last) / 2;
+		fseek(
+				file,
+				suffix_array->global_byte_start_idx + (uint64_t)suffix_array->suffix_array[mid],
+				SEEK_SET
+				);
+		fread(line, 1, cmp_length, file);
 
-		for (int i = 0; i < 32; ++i) {
+		for (uint32_t i = 0; i < cmp_length; ++i) {
 			line[i] = tolower(line[i]);
 		}
 
-        if (strncmp(line, substring, m) > 0) {
-        // if (strncmp_128(str + suffix_array[mid], substring, m) > 0) {
+        if (strncmp(line, substring, cmp_length) > 0) {
+        // if (strncmp_128(line, substring, cmp_length) > 0) {
             last = mid - 1;
         }
         else {
             first = mid + 1;
-            end = mid;
+            end   = mid;
         }
     }
 
-	return std::make_pair(start, end);
+	return {start, end};
 }
 
 
-std::vector<std::string> get_matching_records(
+char** get_matching_records(
 	const char* str,
-	uint32_t* suffix_array,
-	uint32_t n,
+	SuffixArray* suffix_array,
 	const char* substring,
-	int k 
+	uint32_t k 
 ) {
-	std::pair<uint32_t, uint32_t> match_idxs = get_substring_positions(
+	pair_u32 match_idxs = get_substring_positions(
 			str, 
 			suffix_array, 
-			n, 
 			substring
 			);
 
-	if ((int)match_idxs.first == -1) {
-		return std::vector<std::string>();
+	if (match_idxs.first == UINT32_MAX) {
+		return nullptr;
 	}
 
-	uint32_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
+	uint32_t num_matches = min(k, match_idxs.second - match_idxs.first + 1);
 
-	std::string record;
-
-	std::vector<std::string> matches;
-	matches.reserve(num_matches);
+	char** matches = (char**)malloc(num_matches * sizeof(char*));
 
 	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
 		// Go to the original index and iterate backwards until newline.
-		uint32_t offset = suffix_array[i];
+		uint32_t offset = suffix_array->suffix_array[i];
 		while (str[offset] != '\n') --offset;
 		++offset;
 
+		uint32_t match_length = 0;
 		while (true) {
 			char c = str[offset++];
 			if (c == '\\') {
 				++offset;
-				record.push_back(str[offset++]);
+				match_length += 2;
 				continue;
 			}
 			if (c == '\n') {
 				break;
 			}
-			record.push_back(c);
+			++match_length;
 		}
 
-		matches.push_back(record);
-		record.clear();
+		char* record = (char*)malloc(match_length + 1);
+		memcpy(record, str + offset, match_length);
+
+		matches[i - match_idxs.first] = record;
 	}
+
 	return matches;
 }
 
-std::vector<std::string> get_matching_records_file(
+char** get_matching_records_file(
 	const char* filename,
-	uint32_t* suffix_array,
-	uint32_t n,
-	uint64_t byte_offset,
+	const SuffixArray* suffix_array,
 	const char* substring,
 	int k 
 ) {
@@ -734,33 +819,31 @@ std::vector<std::string> get_matching_records_file(
 		exit(1);
 	}
 
-	std::pair<uint64_t, uint64_t> match_idxs = get_substring_positions_file(
+	pair_u32 match_idxs = get_substring_positions_file(
 			file,
-			byte_offset,
-			suffix_array, 
-			n, 
+			suffix_array,
 			substring
 			);
 
 	if (match_idxs.first == UINT32_MAX) {
-		return std::vector<std::string>();
+		return nullptr;
 	}
 
 	size_t num_matches = std::min((size_t)k, (size_t)(match_idxs.second - match_idxs.first + 1));
 
-	std::vector<std::string> records;
-	records.reserve(num_matches);
-
-	robin_hood::unordered_flat_set<uint32_t> match_set;
+	char** records = (char**)malloc(num_matches * sizeof(char*));
 
 	char line[1024];
 
 	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
+		uint8_t is_quoted = get_buffer_bit(suffix_array->is_quoted_bitflag, i);
+
+		uint64_t byte_offset = (uint64_t)suffix_array->suffix_array[i] + suffix_array->global_byte_start_idx;
+
 		// Go to the original index and iterate backwards until newline.
-		uint64_t offset = suffix_array[i] + byte_offset;
 		uint32_t newline_pos = 0;
 
-		fseek(file, max(offset - 512, 0), SEEK_SET);
+		fseek(file, max(byte_offset - 512, 0), SEEK_SET);
 		fread(line, 1, 1024, file);
 
 		for (uint32_t j = 0; j < 512; ++j) {
@@ -772,22 +855,22 @@ std::vector<std::string> get_matching_records_file(
 				newline_pos = j;
 			}
 		}
-		offset = offset - 512 + newline_pos + 1;
+		byte_offset = byte_offset - 512 + newline_pos + 1;
 
-		fseek(file, offset, SEEK_SET);
+		fseek(file, byte_offset, SEEK_SET);
 		fread(line, 1, 1024, file);
 
-		std::string record;
 		uint32_t char_idx = 0;
 		while (true) {
 			char c = line[char_idx++];
 			if (c == '\n') {
 				break;
 			}
-			record.push_back(c);
 		}
+		char* record = (char*)malloc(char_idx + 1);
+		memcpy(record, line, char_idx);
 
-		records.push_back(record);
+		records[i - match_idxs.first] = record;
 	}
 	fclose(file);
 
