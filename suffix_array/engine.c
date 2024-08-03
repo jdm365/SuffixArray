@@ -625,9 +625,9 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	size_t length = min(TWO_GB, sb.st_size - suffix_array->global_byte_start_idx);
 
 	size_t page_size = sysconf(_SC_PAGE_SIZE);
-	size_t page_offset = offset % page_size;
+	size_t aligned_offset = offset - (offset % page_size);
 
-	size_t adjusted_length = length + (page_size - page_offset);
+	size_t adjusted_length = length + (offset - aligned_offset);
 
 	// start from byte pos mmap
 	char* file = (char*)mmap(
@@ -636,7 +636,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 			PROT_READ, 
 			MAP_PRIVATE, 
 			fd, 
-			offset - page_offset
+			aligned_offset
 			);
 
 	uint32_t num_lines_guess = TWO_GB / (suffix_array->max_suffix_length * 8);
@@ -650,11 +650,12 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	init_buffer_bit(suffix_array->is_quoted_bitflag, num_lines_guess);
 
-	uint16_t col_idx  = 0;
+	uint16_t col_idx = 0;
 	file_pos = 0;
 
-	while ((file_pos < TWO_GB) && (file_pos < length)) {
-		while (col_idx != column_idx) {
+	uint32_t endpoint = min(TWO_GB, length);
+	while (file_pos < endpoint) {
+		while ((uint32_t)col_idx != column_idx) {
 			if (file[file_pos] == '"') {
 				// Skip to next unescaped quote
 				++file_pos;
@@ -663,14 +664,17 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 					if (file[file_pos] == '"') {
 						if (file[file_pos + 1] == '"') {
 							file_pos += 2;
+							if (file_pos >= endpoint) goto end;
 							continue;
 						} 
 						else {
 							++file_pos;
+							if (file_pos >= endpoint) goto end;
 							break;
 						}
 					}
 					++file_pos;
+					if (file_pos >= endpoint) goto end;
 				}
 			}
 
@@ -678,6 +682,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 				col_idx = (col_idx + 1) % num_columns;
 			}
 			++file_pos;
+			if (file_pos >= endpoint) goto end;
 		}
 
 		uint8_t quoted_field = (file[file_pos] == '"');
@@ -731,9 +736,14 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 		append_buffer_u32(&suffix_array_mapping, file_pos);
 		append_buffer_bit(suffix_array->is_quoted_bitflag, quoted_field);
 		++file_pos;
+		col_idx = (col_idx + 1) % num_columns;
 	}
 
+	end:
+
 	munmap(file, adjusted_length);
+	printf("Final buffer size: %u\n", text.buffer_idx);
+	fflush(stdout);
 
 	suffix_array->global_byte_end_idx = file_pos + suffix_array->global_byte_start_idx;
 
