@@ -606,7 +606,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 
 	// Read and parse the CSV file.
-	uint64_t file_pos 	= suffix_array->global_byte_start_idx;
+	uint32_t file_pos = suffix_array->global_byte_start_idx;
 
 	// mmap
 	int fd = open(csv_file, O_RDONLY);
@@ -636,7 +636,8 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 			PROT_READ, 
 			MAP_PRIVATE, 
 			fd, 
-			aligned_offset
+			// aligned_offset
+			0
 			);
 
 	uint32_t num_lines_guess = TWO_GB / (suffix_array->max_suffix_length * 8);
@@ -691,7 +692,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 			while (1) {
 				if (file[file_pos] == '"' && file[file_pos + 1] == '"') {
-					append_buffer_c(&text, file[file_pos]);
+					append_buffer_c(&text, tolower(file[file_pos]));
 					append_buffer_u32(&suffix_array_mapping, file_pos);
 					append_buffer_bit(suffix_array->is_quoted_bitflag, 1);
 					file_pos += 2;
@@ -742,16 +743,19 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	end:
 
 	munmap(file, adjusted_length);
-	printf("Final buffer size: %u\n", text.buffer_idx);
-	fflush(stdout);
 
 	suffix_array->global_byte_end_idx = file_pos + suffix_array->global_byte_start_idx;
 
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 	double elapsed = (end_time.tv_sec - start_time.tv_sec) + 
 					 (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
+
+	assert(suffix_array_mapping.buffer_idx == text.buffer_idx);
+	assert(suffix_array_mapping.buffer_idx == suffix_array->is_quoted_bitflag->buffer_bit_idx);
+
+	printf("Final buffer size:          %u\n", suffix_array_mapping.buffer_idx);
 	printf("Time to read and parse CSV: %f\n", elapsed);
-	printf("Mb/s: %f\n", ((double)file_pos / (1024 * 1024)) / elapsed);
+	printf("Mb/s:                       %f\n\n", ((double)file_pos / (1024 * 1024)) / elapsed);
 
 
 	suffix_array->n = suffix_array_mapping.buffer_idx;
@@ -783,6 +787,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	free_buffer_u32(&suffix_array_mapping);
 }
+
 
 #define IMM_MODE (uint8_t)( \
 					_SIDD_UBYTE_OPS | \

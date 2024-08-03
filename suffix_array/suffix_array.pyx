@@ -196,16 +196,29 @@ cdef class SuffixArrayEngine:
         with nogil:
             self.suffix_arrays[0].global_byte_start_idx = 0
             for idx in range(self.num_partitions - 1):
-                ## construct_truncated_suffix_array_from_csv_partitioned(
                 construct_truncated_suffix_array_from_csv_partitioned_mmap(
                     c_filename,
                     self.search_col_idx,
                     self.suffix_arrays[idx],
                     num_columns
                 )
+                '''
+                construct_truncated_suffix_array_from_csv_partitioned(
+                    c_filename,
+                    self.search_col_idx,
+                    self.suffix_arrays[idx]
+                )
+                '''
                 self.suffix_arrays[idx + 1].global_byte_start_idx = self.suffix_arrays[idx].global_byte_end_idx
 
-            ## construct_truncated_suffix_array_from_csv_partitioned(
+            '''
+            construct_truncated_suffix_array_from_csv_partitioned(
+                c_filename,
+                self.search_col_idx,
+                self.suffix_arrays[idx]
+            )
+
+            '''
             construct_truncated_suffix_array_from_csv_partitioned_mmap(
                 c_filename,
                 self.search_col_idx,
@@ -225,7 +238,7 @@ cdef class SuffixArrayEngine:
         cdef int i = 0
         fname = self.csv_filename.encode('utf-8')
         cdef char* c_filename = fname
-        cdef uint32_t num_matches
+        cdef uint32_t num_matches = 0
 
         for i in range(self.num_partitions - 1):
 
@@ -239,10 +252,6 @@ cdef class SuffixArrayEngine:
             for j in range(num_matches):
                 all_records.append(records[j].decode('utf-8'))
 
-        if num_matches == 0:
-            free(records)
-            return []
-
         num_matches = get_matching_records_file(
                 c_filename,
                 self.suffix_arrays[self.num_partitions - 1],
@@ -250,6 +259,10 @@ cdef class SuffixArrayEngine:
                 k,
                 records
                 )
+
+        if num_matches == 0:
+            free(records)
+            return []
 
         for j in range(num_matches):
             all_records.append(records[j].decode('utf-8'))

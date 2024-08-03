@@ -1798,7 +1798,7 @@ typedef npy_clongdouble __pyx_t_5numpy_clongdouble_t;
 typedef npy_cdouble __pyx_t_5numpy_complex_t;
 struct __pyx_opt_args_12suffix_array_17SuffixArrayEngine_query_records;
 
-/* "suffix_array.pyx":218
+/* "suffix_array.pyx":231
  * 
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):             # <<<<<<<<<<<<<<
@@ -6544,7 +6544,7 @@ static void __pyx_f_12suffix_array_17SuffixArrayEngine_construct_truncated_suffi
  *         with nogil:
  *             self.suffix_arrays[0].global_byte_start_idx = 0             # <<<<<<<<<<<<<<
  *             for idx in range(self.num_partitions - 1):
- *                 ## construct_truncated_suffix_array_from_csv_partitioned(
+ *                 construct_truncated_suffix_array_from_csv_partitioned_mmap(
  */
         (__pyx_v_self->suffix_arrays[0])->global_byte_start_idx = 0;
 
@@ -6552,37 +6552,37 @@ static void __pyx_f_12suffix_array_17SuffixArrayEngine_construct_truncated_suffi
  *         with nogil:
  *             self.suffix_arrays[0].global_byte_start_idx = 0
  *             for idx in range(self.num_partitions - 1):             # <<<<<<<<<<<<<<
- *                 ## construct_truncated_suffix_array_from_csv_partitioned(
  *                 construct_truncated_suffix_array_from_csv_partitioned_mmap(
+ *                     c_filename,
  */
         __pyx_t_17 = (__pyx_v_self->num_partitions - 1);
         __pyx_t_21 = __pyx_t_17;
         for (__pyx_t_19 = 0; __pyx_t_19 < __pyx_t_21; __pyx_t_19+=1) {
           __pyx_v_idx = __pyx_t_19;
 
-          /* "suffix_array.pyx":200
+          /* "suffix_array.pyx":199
+ *             self.suffix_arrays[0].global_byte_start_idx = 0
  *             for idx in range(self.num_partitions - 1):
- *                 ## construct_truncated_suffix_array_from_csv_partitioned(
  *                 construct_truncated_suffix_array_from_csv_partitioned_mmap(             # <<<<<<<<<<<<<<
  *                     c_filename,
  *                     self.search_col_idx,
  */
           construct_truncated_suffix_array_from_csv_partitioned_mmap(__pyx_v_c_filename, __pyx_v_self->search_col_idx, (__pyx_v_self->suffix_arrays[__pyx_v_idx]), __pyx_v_num_columns);
 
-          /* "suffix_array.pyx":206
- *                     num_columns
+          /* "suffix_array.pyx":212
  *                 )
+ *                 '''
  *                 self.suffix_arrays[idx + 1].global_byte_start_idx = self.suffix_arrays[idx].global_byte_end_idx             # <<<<<<<<<<<<<<
  * 
- *             ## construct_truncated_suffix_array_from_csv_partitioned(
+ *             '''
  */
           __pyx_t_22 = (__pyx_v_self->suffix_arrays[__pyx_v_idx])->global_byte_end_idx;
           (__pyx_v_self->suffix_arrays[(__pyx_v_idx + 1)])->global_byte_start_idx = __pyx_t_22;
         }
 
-        /* "suffix_array.pyx":209
+        /* "suffix_array.pyx":222
  * 
- *             ## construct_truncated_suffix_array_from_csv_partitioned(
+ *             '''
  *             construct_truncated_suffix_array_from_csv_partitioned_mmap(             # <<<<<<<<<<<<<<
  *                 c_filename,
  *                 self.search_col_idx,
@@ -6779,7 +6779,7 @@ static PyObject *__pyx_pf_12suffix_array_17SuffixArrayEngine_4construct_truncate
   return __pyx_r;
 }
 
-/* "suffix_array.pyx":218
+/* "suffix_array.pyx":231
  * 
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):             # <<<<<<<<<<<<<<
@@ -6846,7 +6846,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_typedict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_query_records); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 218, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_query_records); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 231, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!__Pyx_IsSameCFunction(__pyx_t_1, (void*) __pyx_pw_12suffix_array_17SuffixArrayEngine_7query_records)) {
         __Pyx_XDECREF(__pyx_r);
@@ -6869,7 +6869,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
           PyObject *__pyx_callargs[3] = {__pyx_t_4, __pyx_v_substring, __pyx_v_k};
           __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_5, 2+__pyx_t_5);
           __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-          if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 218, __pyx_L1_error)
+          if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 231, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_2);
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         }
@@ -6891,17 +6891,17 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
     #endif
   }
 
-  /* "suffix_array.pyx":219
+  /* "suffix_array.pyx":232
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):
  *         if substring == '':             # <<<<<<<<<<<<<<
  *             return []
  * 
  */
-  __pyx_t_6 = (__Pyx_PyUnicode_Equals(__pyx_v_substring, __pyx_kp_u__10, Py_EQ)); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_6 = (__Pyx_PyUnicode_Equals(__pyx_v_substring, __pyx_kp_u__10, Py_EQ)); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 232, __pyx_L1_error)
   if (__pyx_t_6) {
 
-    /* "suffix_array.pyx":220
+    /* "suffix_array.pyx":233
  *     cpdef query_records(self, substring: str, k: int = 1000):
  *         if substring == '':
  *             return []             # <<<<<<<<<<<<<<
@@ -6909,13 +6909,13 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  *         cdef uint32_t TWO_GB = 2 * 1024 * 1024 * 1024
  */
     __Pyx_XDECREF(__pyx_r);
-    __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 220, __pyx_L1_error)
+    __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 233, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_r = __pyx_t_1;
     __pyx_t_1 = 0;
     goto __pyx_L0;
 
-    /* "suffix_array.pyx":219
+    /* "suffix_array.pyx":232
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):
  *         if substring == '':             # <<<<<<<<<<<<<<
@@ -6924,7 +6924,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  */
   }
 
-  /* "suffix_array.pyx":222
+  /* "suffix_array.pyx":235
  *             return []
  * 
  *         cdef uint32_t TWO_GB = 2 * 1024 * 1024 * 1024             # <<<<<<<<<<<<<<
@@ -6933,35 +6933,35 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  */
   __pyx_v_TWO_GB = 0x80000000;
 
-  /* "suffix_array.pyx":223
+  /* "suffix_array.pyx":236
  * 
  *         cdef uint32_t TWO_GB = 2 * 1024 * 1024 * 1024
  *         cdef list all_records = []             # <<<<<<<<<<<<<<
  *         cdef char** records = <char**>malloc(k * sizeof(char*))
  *         cdef int i = 0
  */
-  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 223, __pyx_L1_error)
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_all_records = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "suffix_array.pyx":224
+  /* "suffix_array.pyx":237
  *         cdef uint32_t TWO_GB = 2 * 1024 * 1024 * 1024
  *         cdef list all_records = []
  *         cdef char** records = <char**>malloc(k * sizeof(char*))             # <<<<<<<<<<<<<<
  *         cdef int i = 0
  *         fname = self.csv_filename.encode('utf-8')
  */
-  __pyx_t_1 = __Pyx_PyInt_FromSize_t((sizeof(char *))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_FromSize_t((sizeof(char *))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 237, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = PyNumber_Multiply(__pyx_v_k, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_t_2 = PyNumber_Multiply(__pyx_v_k, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 237, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_7 = __Pyx_PyInt_As_size_t(__pyx_t_2); if (unlikely((__pyx_t_7 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyInt_As_size_t(__pyx_t_2); if (unlikely((__pyx_t_7 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 237, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_v_records = ((char **)malloc(__pyx_t_7));
 
-  /* "suffix_array.pyx":225
+  /* "suffix_array.pyx":238
  *         cdef list all_records = []
  *         cdef char** records = <char**>malloc(k * sizeof(char*))
  *         cdef int i = 0             # <<<<<<<<<<<<<<
@@ -6970,34 +6970,43 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  */
   __pyx_v_i = 0;
 
-  /* "suffix_array.pyx":226
+  /* "suffix_array.pyx":239
  *         cdef char** records = <char**>malloc(k * sizeof(char*))
  *         cdef int i = 0
  *         fname = self.csv_filename.encode('utf-8')             # <<<<<<<<<<<<<<
  *         cdef char* c_filename = fname
- *         cdef uint32_t num_matches
+ *         cdef uint32_t num_matches = 0
  */
   if (unlikely(__pyx_v_self->csv_filename == Py_None)) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%.30s'", "encode");
-    __PYX_ERR(0, 226, __pyx_L1_error)
+    __PYX_ERR(0, 239, __pyx_L1_error)
   }
-  __pyx_t_2 = PyUnicode_AsUTF8String(__pyx_v_self->csv_filename); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_2 = PyUnicode_AsUTF8String(__pyx_v_self->csv_filename); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 239, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_v_fname = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "suffix_array.pyx":227
+  /* "suffix_array.pyx":240
  *         cdef int i = 0
  *         fname = self.csv_filename.encode('utf-8')
  *         cdef char* c_filename = fname             # <<<<<<<<<<<<<<
- *         cdef uint32_t num_matches
+ *         cdef uint32_t num_matches = 0
  * 
  */
-  __pyx_t_8 = __Pyx_PyObject_AsWritableString(__pyx_v_fname); if (unlikely((!__pyx_t_8) && PyErr_Occurred())) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_AsWritableString(__pyx_v_fname); if (unlikely((!__pyx_t_8) && PyErr_Occurred())) __PYX_ERR(0, 240, __pyx_L1_error)
   __pyx_v_c_filename = __pyx_t_8;
 
-  /* "suffix_array.pyx":230
- *         cdef uint32_t num_matches
+  /* "suffix_array.pyx":241
+ *         fname = self.csv_filename.encode('utf-8')
+ *         cdef char* c_filename = fname
+ *         cdef uint32_t num_matches = 0             # <<<<<<<<<<<<<<
+ * 
+ *         for i in range(self.num_partitions - 1):
+ */
+  __pyx_v_num_matches = 0;
+
+  /* "suffix_array.pyx":243
+ *         cdef uint32_t num_matches = 0
  * 
  *         for i in range(self.num_partitions - 1):             # <<<<<<<<<<<<<<
  * 
@@ -7008,16 +7017,16 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_10; __pyx_t_5+=1) {
     __pyx_v_i = __pyx_t_5;
 
-    /* "suffix_array.pyx":235
+    /* "suffix_array.pyx":248
  *                     c_filename,
  *                     self.suffix_arrays[i],
  *                     substring.lower().encode('utf-8'),             # <<<<<<<<<<<<<<
  *                     k,
  *                     records
  */
-    __pyx_t_1 = __Pyx_CallUnboundCMethod0(&__pyx_umethod_PyUnicode_Type_lower, __pyx_v_substring); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 235, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_CallUnboundCMethod0(&__pyx_umethod_PyUnicode_Type_lower, __pyx_v_substring); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 248, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_encode); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 235, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_encode); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 248, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -7038,22 +7047,22 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
       PyObject *__pyx_callargs[2] = {__pyx_t_1, __pyx_kp_u_utf_8};
       __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_11, 1+__pyx_t_11);
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 235, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 248, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     }
-    __pyx_t_12 = __Pyx_PyObject_AsString(__pyx_t_2); if (unlikely((!__pyx_t_12) && PyErr_Occurred())) __PYX_ERR(0, 235, __pyx_L1_error)
+    __pyx_t_12 = __Pyx_PyObject_AsString(__pyx_t_2); if (unlikely((!__pyx_t_12) && PyErr_Occurred())) __PYX_ERR(0, 248, __pyx_L1_error)
 
-    /* "suffix_array.pyx":236
+    /* "suffix_array.pyx":249
  *                     self.suffix_arrays[i],
  *                     substring.lower().encode('utf-8'),
  *                     k,             # <<<<<<<<<<<<<<
  *                     records
  *                     )
  */
-    __pyx_t_13 = __Pyx_PyInt_As_uint32_t(__pyx_v_k); if (unlikely((__pyx_t_13 == ((uint32_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_13 = __Pyx_PyInt_As_uint32_t(__pyx_v_k); if (unlikely((__pyx_t_13 == ((uint32_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 249, __pyx_L1_error)
 
-    /* "suffix_array.pyx":232
+    /* "suffix_array.pyx":245
  *         for i in range(self.num_partitions - 1):
  * 
  *             num_matches = get_matching_records_file(             # <<<<<<<<<<<<<<
@@ -7063,7 +7072,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
     __pyx_v_num_matches = get_matching_records_file(__pyx_v_c_filename, (__pyx_v_self->suffix_arrays[__pyx_v_i]), __pyx_t_12, __pyx_t_13, __pyx_v_records);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "suffix_array.pyx":239
+    /* "suffix_array.pyx":252
  *                     records
  *                     )
  *             for j in range(num_matches):             # <<<<<<<<<<<<<<
@@ -7075,74 +7084,32 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
     for (__pyx_t_15 = 0; __pyx_t_15 < __pyx_t_14; __pyx_t_15+=1) {
       __pyx_v_j = __pyx_t_15;
 
-      /* "suffix_array.pyx":240
+      /* "suffix_array.pyx":253
  *                     )
  *             for j in range(num_matches):
  *                 all_records.append(records[j].decode('utf-8'))             # <<<<<<<<<<<<<<
  * 
- *         if num_matches == 0:
+ *         num_matches = get_matching_records_file(
  */
       __pyx_t_8 = (__pyx_v_records[__pyx_v_j]);
-      __pyx_t_16 = __Pyx_ssize_strlen(__pyx_t_8); if (unlikely(__pyx_t_16 == ((Py_ssize_t)-1))) __PYX_ERR(0, 240, __pyx_L1_error)
-      __pyx_t_2 = __Pyx_decode_c_string(__pyx_t_8, 0, __pyx_t_16, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 240, __pyx_L1_error)
+      __pyx_t_16 = __Pyx_ssize_strlen(__pyx_t_8); if (unlikely(__pyx_t_16 == ((Py_ssize_t)-1))) __PYX_ERR(0, 253, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_decode_c_string(__pyx_t_8, 0, __pyx_t_16, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 253, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_17 = __Pyx_PyList_Append(__pyx_v_all_records, __pyx_t_2); if (unlikely(__pyx_t_17 == ((int)-1))) __PYX_ERR(0, 240, __pyx_L1_error)
+      __pyx_t_17 = __Pyx_PyList_Append(__pyx_v_all_records, __pyx_t_2); if (unlikely(__pyx_t_17 == ((int)-1))) __PYX_ERR(0, 253, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     }
   }
 
-  /* "suffix_array.pyx":242
- *                 all_records.append(records[j].decode('utf-8'))
- * 
- *         if num_matches == 0:             # <<<<<<<<<<<<<<
- *             free(records)
- *             return []
- */
-  __pyx_t_6 = (__pyx_v_num_matches == 0);
-  if (__pyx_t_6) {
-
-    /* "suffix_array.pyx":243
- * 
- *         if num_matches == 0:
- *             free(records)             # <<<<<<<<<<<<<<
- *             return []
- * 
- */
-    free(__pyx_v_records);
-
-    /* "suffix_array.pyx":244
- *         if num_matches == 0:
- *             free(records)
- *             return []             # <<<<<<<<<<<<<<
- * 
- *         num_matches = get_matching_records_file(
- */
-    __Pyx_XDECREF(__pyx_r);
-    __pyx_t_2 = PyList_New(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 244, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_2);
-    __pyx_r = __pyx_t_2;
-    __pyx_t_2 = 0;
-    goto __pyx_L0;
-
-    /* "suffix_array.pyx":242
- *                 all_records.append(records[j].decode('utf-8'))
- * 
- *         if num_matches == 0:             # <<<<<<<<<<<<<<
- *             free(records)
- *             return []
- */
-  }
-
-  /* "suffix_array.pyx":249
+  /* "suffix_array.pyx":258
  *                 c_filename,
  *                 self.suffix_arrays[self.num_partitions - 1],
  *                 substring.lower().encode('utf-8'),             # <<<<<<<<<<<<<<
  *                 k,
  *                 records
  */
-  __pyx_t_3 = __Pyx_CallUnboundCMethod0(&__pyx_umethod_PyUnicode_Type_lower, __pyx_v_substring); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 249, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_CallUnboundCMethod0(&__pyx_umethod_PyUnicode_Type_lower, __pyx_v_substring); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 258, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_encode); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 249, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_encode); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 258, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_t_3 = NULL;
@@ -7163,23 +7130,23 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
     PyObject *__pyx_callargs[2] = {__pyx_t_3, __pyx_kp_u_utf_8};
     __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_5, 1+__pyx_t_5);
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 249, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 258, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   }
-  __pyx_t_12 = __Pyx_PyObject_AsString(__pyx_t_2); if (unlikely((!__pyx_t_12) && PyErr_Occurred())) __PYX_ERR(0, 249, __pyx_L1_error)
+  __pyx_t_12 = __Pyx_PyObject_AsString(__pyx_t_2); if (unlikely((!__pyx_t_12) && PyErr_Occurred())) __PYX_ERR(0, 258, __pyx_L1_error)
 
-  /* "suffix_array.pyx":250
+  /* "suffix_array.pyx":259
  *                 self.suffix_arrays[self.num_partitions - 1],
  *                 substring.lower().encode('utf-8'),
  *                 k,             # <<<<<<<<<<<<<<
  *                 records
  *                 )
  */
-  __pyx_t_13 = __Pyx_PyInt_As_uint32_t(__pyx_v_k); if (unlikely((__pyx_t_13 == ((uint32_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 250, __pyx_L1_error)
+  __pyx_t_13 = __Pyx_PyInt_As_uint32_t(__pyx_v_k); if (unlikely((__pyx_t_13 == ((uint32_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 259, __pyx_L1_error)
 
-  /* "suffix_array.pyx":246
- *             return []
+  /* "suffix_array.pyx":255
+ *                 all_records.append(records[j].decode('utf-8'))
  * 
  *         num_matches = get_matching_records_file(             # <<<<<<<<<<<<<<
  *                 c_filename,
@@ -7188,8 +7155,50 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   __pyx_v_num_matches = get_matching_records_file(__pyx_v_c_filename, (__pyx_v_self->suffix_arrays[(__pyx_v_self->num_partitions - 1)]), __pyx_t_12, __pyx_t_13, __pyx_v_records);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "suffix_array.pyx":254
+  /* "suffix_array.pyx":263
  *                 )
+ * 
+ *         if num_matches == 0:             # <<<<<<<<<<<<<<
+ *             free(records)
+ *             return []
+ */
+  __pyx_t_6 = (__pyx_v_num_matches == 0);
+  if (__pyx_t_6) {
+
+    /* "suffix_array.pyx":264
+ * 
+ *         if num_matches == 0:
+ *             free(records)             # <<<<<<<<<<<<<<
+ *             return []
+ * 
+ */
+    free(__pyx_v_records);
+
+    /* "suffix_array.pyx":265
+ *         if num_matches == 0:
+ *             free(records)
+ *             return []             # <<<<<<<<<<<<<<
+ * 
+ *         for j in range(num_matches):
+ */
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_2 = PyList_New(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 265, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+    __pyx_r = __pyx_t_2;
+    __pyx_t_2 = 0;
+    goto __pyx_L0;
+
+    /* "suffix_array.pyx":263
+ *                 )
+ * 
+ *         if num_matches == 0:             # <<<<<<<<<<<<<<
+ *             free(records)
+ *             return []
+ */
+  }
+
+  /* "suffix_array.pyx":267
+ *             return []
  * 
  *         for j in range(num_matches):             # <<<<<<<<<<<<<<
  *             all_records.append(records[j].decode('utf-8'))
@@ -7200,7 +7209,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   for (__pyx_t_15 = 0; __pyx_t_15 < __pyx_t_14; __pyx_t_15+=1) {
     __pyx_v_j = __pyx_t_15;
 
-    /* "suffix_array.pyx":255
+    /* "suffix_array.pyx":268
  * 
  *         for j in range(num_matches):
  *             all_records.append(records[j].decode('utf-8'))             # <<<<<<<<<<<<<<
@@ -7208,34 +7217,34 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  *         reader      = csv.reader(all_records, delimiter=',')
  */
     __pyx_t_8 = (__pyx_v_records[__pyx_v_j]);
-    __pyx_t_16 = __Pyx_ssize_strlen(__pyx_t_8); if (unlikely(__pyx_t_16 == ((Py_ssize_t)-1))) __PYX_ERR(0, 255, __pyx_L1_error)
-    __pyx_t_2 = __Pyx_decode_c_string(__pyx_t_8, 0, __pyx_t_16, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 255, __pyx_L1_error)
+    __pyx_t_16 = __Pyx_ssize_strlen(__pyx_t_8); if (unlikely(__pyx_t_16 == ((Py_ssize_t)-1))) __PYX_ERR(0, 268, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_decode_c_string(__pyx_t_8, 0, __pyx_t_16, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 268, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_17 = __Pyx_PyList_Append(__pyx_v_all_records, __pyx_t_2); if (unlikely(__pyx_t_17 == ((int)-1))) __PYX_ERR(0, 255, __pyx_L1_error)
+    __pyx_t_17 = __Pyx_PyList_Append(__pyx_v_all_records, __pyx_t_2); if (unlikely(__pyx_t_17 == ((int)-1))) __PYX_ERR(0, 268, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   }
 
-  /* "suffix_array.pyx":257
+  /* "suffix_array.pyx":270
  *             all_records.append(records[j].decode('utf-8'))
  * 
  *         reader      = csv.reader(all_records, delimiter=',')             # <<<<<<<<<<<<<<
  *         all_records = [x for x in reader]
  *         all_records = [dict(zip(self.columns, x)) for x in all_records]
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_csv_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 257, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_csv_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 270, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_reader); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 257, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_reader); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 270, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 257, __pyx_L1_error)
+  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 270, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_v_all_records);
   __Pyx_GIVEREF(__pyx_v_all_records);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_v_all_records)) __PYX_ERR(0, 257, __pyx_L1_error);
-  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 257, __pyx_L1_error)
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_v_all_records)) __PYX_ERR(0, 270, __pyx_L1_error);
+  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 270, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_delimiter, __pyx_kp_u__7) < 0) __PYX_ERR(0, 257, __pyx_L1_error)
-  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_2, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 257, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_delimiter, __pyx_kp_u__7) < 0) __PYX_ERR(0, 270, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_2, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 270, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -7243,7 +7252,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   __pyx_v_reader = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "suffix_array.pyx":258
+  /* "suffix_array.pyx":271
  * 
  *         reader      = csv.reader(all_records, delimiter=',')
  *         all_records = [x for x in reader]             # <<<<<<<<<<<<<<
@@ -7251,16 +7260,16 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  * 
  */
   { /* enter inner scope */
-    __pyx_t_4 = PyList_New(0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 258, __pyx_L13_error)
+    __pyx_t_4 = PyList_New(0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 271, __pyx_L13_error)
     __Pyx_GOTREF(__pyx_t_4);
     if (likely(PyList_CheckExact(__pyx_v_reader)) || PyTuple_CheckExact(__pyx_v_reader)) {
       __pyx_t_3 = __pyx_v_reader; __Pyx_INCREF(__pyx_t_3);
       __pyx_t_16 = 0;
       __pyx_t_18 = NULL;
     } else {
-      __pyx_t_16 = -1; __pyx_t_3 = PyObject_GetIter(__pyx_v_reader); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 258, __pyx_L13_error)
+      __pyx_t_16 = -1; __pyx_t_3 = PyObject_GetIter(__pyx_v_reader); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 271, __pyx_L13_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_18 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_3); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 258, __pyx_L13_error)
+      __pyx_t_18 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_3); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 271, __pyx_L13_error)
     }
     for (;;) {
       if (likely(!__pyx_t_18)) {
@@ -7268,28 +7277,28 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
           {
             Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_3);
             #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 258, __pyx_L13_error)
+            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 271, __pyx_L13_error)
             #endif
             if (__pyx_t_16 >= __pyx_temp) break;
           }
           #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-          __pyx_t_2 = PyList_GET_ITEM(__pyx_t_3, __pyx_t_16); __Pyx_INCREF(__pyx_t_2); __pyx_t_16++; if (unlikely((0 < 0))) __PYX_ERR(0, 258, __pyx_L13_error)
+          __pyx_t_2 = PyList_GET_ITEM(__pyx_t_3, __pyx_t_16); __Pyx_INCREF(__pyx_t_2); __pyx_t_16++; if (unlikely((0 < 0))) __PYX_ERR(0, 271, __pyx_L13_error)
           #else
-          __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_3, __pyx_t_16); __pyx_t_16++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 258, __pyx_L13_error)
+          __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_3, __pyx_t_16); __pyx_t_16++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 271, __pyx_L13_error)
           __Pyx_GOTREF(__pyx_t_2);
           #endif
         } else {
           {
             Py_ssize_t __pyx_temp = __Pyx_PyTuple_GET_SIZE(__pyx_t_3);
             #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 258, __pyx_L13_error)
+            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 271, __pyx_L13_error)
             #endif
             if (__pyx_t_16 >= __pyx_temp) break;
           }
           #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-          __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_3, __pyx_t_16); __Pyx_INCREF(__pyx_t_2); __pyx_t_16++; if (unlikely((0 < 0))) __PYX_ERR(0, 258, __pyx_L13_error)
+          __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_3, __pyx_t_16); __Pyx_INCREF(__pyx_t_2); __pyx_t_16++; if (unlikely((0 < 0))) __PYX_ERR(0, 271, __pyx_L13_error)
           #else
-          __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_3, __pyx_t_16); __pyx_t_16++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 258, __pyx_L13_error)
+          __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_3, __pyx_t_16); __pyx_t_16++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 271, __pyx_L13_error)
           __Pyx_GOTREF(__pyx_t_2);
           #endif
         }
@@ -7299,7 +7308,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
           PyObject* exc_type = PyErr_Occurred();
           if (exc_type) {
             if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-            else __PYX_ERR(0, 258, __pyx_L13_error)
+            else __PYX_ERR(0, 271, __pyx_L13_error)
           }
           break;
         }
@@ -7307,7 +7316,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
       }
       __Pyx_XDECREF_SET(__pyx_7genexpr__pyx_v_x, __pyx_t_2);
       __pyx_t_2 = 0;
-      if (unlikely(__Pyx_ListComp_Append(__pyx_t_4, (PyObject*)__pyx_7genexpr__pyx_v_x))) __PYX_ERR(0, 258, __pyx_L13_error)
+      if (unlikely(__Pyx_ListComp_Append(__pyx_t_4, (PyObject*)__pyx_7genexpr__pyx_v_x))) __PYX_ERR(0, 271, __pyx_L13_error)
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __Pyx_XDECREF(__pyx_7genexpr__pyx_v_x); __pyx_7genexpr__pyx_v_x = 0;
@@ -7320,7 +7329,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   __Pyx_DECREF_SET(__pyx_v_all_records, ((PyObject*)__pyx_t_4));
   __pyx_t_4 = 0;
 
-  /* "suffix_array.pyx":259
+  /* "suffix_array.pyx":272
  *         reader      = csv.reader(all_records, delimiter=',')
  *         all_records = [x for x in reader]
  *         all_records = [dict(zip(self.columns, x)) for x in all_records]             # <<<<<<<<<<<<<<
@@ -7328,7 +7337,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  *         for idx in range(num_matches):
  */
   { /* enter inner scope */
-    __pyx_t_4 = PyList_New(0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 259, __pyx_L20_error)
+    __pyx_t_4 = PyList_New(0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 272, __pyx_L20_error)
     __Pyx_GOTREF(__pyx_t_4);
     __pyx_t_3 = __pyx_v_all_records; __Pyx_INCREF(__pyx_t_3);
     __pyx_t_16 = 0;
@@ -7336,33 +7345,33 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
       {
         Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_3);
         #if !CYTHON_ASSUME_SAFE_MACROS
-        if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 259, __pyx_L20_error)
+        if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 272, __pyx_L20_error)
         #endif
         if (__pyx_t_16 >= __pyx_temp) break;
       }
       #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-      __pyx_t_2 = PyList_GET_ITEM(__pyx_t_3, __pyx_t_16); __Pyx_INCREF(__pyx_t_2); __pyx_t_16++; if (unlikely((0 < 0))) __PYX_ERR(0, 259, __pyx_L20_error)
+      __pyx_t_2 = PyList_GET_ITEM(__pyx_t_3, __pyx_t_16); __Pyx_INCREF(__pyx_t_2); __pyx_t_16++; if (unlikely((0 < 0))) __PYX_ERR(0, 272, __pyx_L20_error)
       #else
-      __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_3, __pyx_t_16); __pyx_t_16++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 259, __pyx_L20_error)
+      __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_3, __pyx_t_16); __pyx_t_16++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 272, __pyx_L20_error)
       __Pyx_GOTREF(__pyx_t_2);
       #endif
       __Pyx_XDECREF_SET(__pyx_8genexpr1__pyx_v_x, __pyx_t_2);
       __pyx_t_2 = 0;
-      __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 259, __pyx_L20_error)
+      __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 272, __pyx_L20_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_INCREF(__pyx_v_self->columns);
       __Pyx_GIVEREF(__pyx_v_self->columns);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_v_self->columns)) __PYX_ERR(0, 259, __pyx_L20_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_v_self->columns)) __PYX_ERR(0, 272, __pyx_L20_error);
       __Pyx_INCREF(__pyx_8genexpr1__pyx_v_x);
       __Pyx_GIVEREF(__pyx_8genexpr1__pyx_v_x);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 1, __pyx_8genexpr1__pyx_v_x)) __PYX_ERR(0, 259, __pyx_L20_error);
-      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_zip, __pyx_t_2, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 259, __pyx_L20_error)
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 1, __pyx_8genexpr1__pyx_v_x)) __PYX_ERR(0, 272, __pyx_L20_error);
+      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_zip, __pyx_t_2, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 272, __pyx_L20_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __pyx_t_2 = __Pyx_PyObject_CallOneArg(((PyObject *)(&PyDict_Type)), __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 259, __pyx_L20_error)
+      __pyx_t_2 = __Pyx_PyObject_CallOneArg(((PyObject *)(&PyDict_Type)), __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 272, __pyx_L20_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(__Pyx_ListComp_Append(__pyx_t_4, (PyObject*)__pyx_t_2))) __PYX_ERR(0, 259, __pyx_L20_error)
+      if (unlikely(__Pyx_ListComp_Append(__pyx_t_4, (PyObject*)__pyx_t_2))) __PYX_ERR(0, 272, __pyx_L20_error)
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -7376,7 +7385,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   __Pyx_DECREF_SET(__pyx_v_all_records, ((PyObject*)__pyx_t_4));
   __pyx_t_4 = 0;
 
-  /* "suffix_array.pyx":261
+  /* "suffix_array.pyx":274
  *         all_records = [dict(zip(self.columns, x)) for x in all_records]
  * 
  *         for idx in range(num_matches):             # <<<<<<<<<<<<<<
@@ -7388,7 +7397,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   for (__pyx_t_15 = 0; __pyx_t_15 < __pyx_t_14; __pyx_t_15+=1) {
     __pyx_v_idx = __pyx_t_15;
 
-    /* "suffix_array.pyx":262
+    /* "suffix_array.pyx":275
  * 
  *         for idx in range(num_matches):
  *             free(records[idx])             # <<<<<<<<<<<<<<
@@ -7398,7 +7407,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
     free((__pyx_v_records[__pyx_v_idx]));
   }
 
-  /* "suffix_array.pyx":264
+  /* "suffix_array.pyx":277
  *             free(records[idx])
  * 
  *         free(records)             # <<<<<<<<<<<<<<
@@ -7407,7 +7416,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
  */
   free(__pyx_v_records);
 
-  /* "suffix_array.pyx":266
+  /* "suffix_array.pyx":279
  *         free(records)
  * 
  *         return all_records             # <<<<<<<<<<<<<<
@@ -7419,7 +7428,7 @@ static PyObject *__pyx_f_12suffix_array_17SuffixArrayEngine_query_records(struct
   __pyx_r = __pyx_v_all_records;
   goto __pyx_L0;
 
-  /* "suffix_array.pyx":218
+  /* "suffix_array.pyx":231
  * 
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):             # <<<<<<<<<<<<<<
@@ -7503,19 +7512,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 218, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 231, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_k);
           if (value) { values[1] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 218, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 231, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "query_records") < 0)) __PYX_ERR(0, 218, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "query_records") < 0)) __PYX_ERR(0, 231, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -7531,7 +7540,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("query_records", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 218, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("query_records", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 231, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -7545,8 +7554,8 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_substring), (&PyUnicode_Type), 0, "substring", 1))) __PYX_ERR(0, 218, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_k), (&PyInt_Type), 0, "k", 1))) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_substring), (&PyUnicode_Type), 0, "substring", 1))) __PYX_ERR(0, 231, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_k), (&PyInt_Type), 0, "k", 1))) __PYX_ERR(0, 231, __pyx_L1_error)
   __pyx_r = __pyx_pf_12suffix_array_17SuffixArrayEngine_6query_records(((struct __pyx_obj_12suffix_array_SuffixArrayEngine *)__pyx_v_self), __pyx_v_substring, __pyx_v_k);
 
   /* function exit code */
@@ -7576,7 +7585,7 @@ static PyObject *__pyx_pf_12suffix_array_17SuffixArrayEngine_6query_records(stru
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.k = __pyx_v_k;
-  __pyx_t_1 = __pyx_vtabptr_12suffix_array_SuffixArrayEngine->query_records(__pyx_v_self, __pyx_v_substring, 1, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_1 = __pyx_vtabptr_12suffix_array_SuffixArrayEngine->query_records(__pyx_v_self, __pyx_v_substring, 1, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8091,7 +8100,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
   __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 114, __pyx_L1_error)
   __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 140, __pyx_L1_error)
   __pyx_builtin_open = __Pyx_GetBuiltinName(__pyx_n_s_open); if (!__pyx_builtin_open) __PYX_ERR(0, 174, __pyx_L1_error)
-  __pyx_builtin_zip = __Pyx_GetBuiltinName(__pyx_n_s_zip); if (!__pyx_builtin_zip) __PYX_ERR(0, 259, __pyx_L1_error)
+  __pyx_builtin_zip = __Pyx_GetBuiltinName(__pyx_n_s_zip); if (!__pyx_builtin_zip) __PYX_ERR(0, 272, __pyx_L1_error)
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(1, 2, __pyx_L1_error)
   __pyx_builtin_ImportError = __Pyx_GetBuiltinName(__pyx_n_s_ImportError); if (!__pyx_builtin_ImportError) __PYX_ERR(2, 984, __pyx_L1_error)
   return 0;
@@ -8183,17 +8192,17 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GIVEREF(__pyx_tuple__15);
   __pyx_codeobj__16 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__15, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_suffix_array_suffix_array_pyx, __pyx_n_s_construct_truncated_suffix_array_2, 163, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__16)) __PYX_ERR(0, 163, __pyx_L1_error)
 
-  /* "suffix_array.pyx":218
+  /* "suffix_array.pyx":231
  * 
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):             # <<<<<<<<<<<<<<
  *         if substring == '':
  *             return []
  */
-  __pyx_tuple__17 = PyTuple_Pack(3, __pyx_n_s_self, __pyx_n_s_substring, __pyx_n_s_k); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_tuple__17 = PyTuple_Pack(3, __pyx_n_s_self, __pyx_n_s_substring, __pyx_n_s_k); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__17);
   __Pyx_GIVEREF(__pyx_tuple__17);
-  __pyx_codeobj__18 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__17, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_suffix_array_suffix_array_pyx, __pyx_n_s_query_records, 218, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__18)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_codeobj__18 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__17, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_suffix_array_suffix_array_pyx, __pyx_n_s_query_records, 231, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__18)) __PYX_ERR(0, 231, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
@@ -8835,34 +8844,34 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_12suffix_array_SuffixArrayEngine);
 
-  /* "suffix_array.pyx":218
+  /* "suffix_array.pyx":231
  * 
  * 
  *     cpdef query_records(self, substring: str, k: int = 1000):             # <<<<<<<<<<<<<<
  *         if substring == '':
  *             return []
  */
-  if (!(likely(__Pyx_Py3Int_CheckExact(__pyx_int_1000)) || __Pyx_RaiseUnexpectedTypeError("int", __pyx_int_1000))) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (!(likely(__Pyx_Py3Int_CheckExact(__pyx_int_1000)) || __Pyx_RaiseUnexpectedTypeError("int", __pyx_int_1000))) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_INCREF(__pyx_int_1000);
   __pyx_k__9 = ((PyObject*)__pyx_int_1000);
   __Pyx_GIVEREF(__pyx_int_1000);
-  if (!(likely(__Pyx_Py3Int_CheckExact(__pyx_int_1000)) || __Pyx_RaiseUnexpectedTypeError("int", __pyx_int_1000))) __PYX_ERR(0, 218, __pyx_L1_error)
-  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (!(likely(__Pyx_Py3Int_CheckExact(__pyx_int_1000)) || __Pyx_RaiseUnexpectedTypeError("int", __pyx_int_1000))) __PYX_ERR(0, 231, __pyx_L1_error)
+  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_int_1000);
   __Pyx_GIVEREF(__pyx_int_1000);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_int_1000)) __PYX_ERR(0, 218, __pyx_L1_error);
-  __pyx_t_3 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_int_1000)) __PYX_ERR(0, 231, __pyx_L1_error);
+  __pyx_t_3 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_substring, __pyx_n_s_str) < 0) __PYX_ERR(0, 218, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_k, __pyx_n_s_int) < 0) __PYX_ERR(0, 218, __pyx_L1_error)
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_12suffix_array_17SuffixArrayEngine_7query_records, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_SuffixArrayEngine_query_records, NULL, __pyx_n_s_suffix_array, __pyx_d, ((PyObject *)__pyx_codeobj__18)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_substring, __pyx_n_s_str) < 0) __PYX_ERR(0, 231, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_k, __pyx_n_s_int) < 0) __PYX_ERR(0, 231, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_12suffix_array_17SuffixArrayEngine_7query_records, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_SuffixArrayEngine_query_records, NULL, __pyx_n_s_suffix_array, __pyx_d, ((PyObject *)__pyx_codeobj__18)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_5, __pyx_t_2);
   __Pyx_CyFunction_SetAnnotationsDict(__pyx_t_5, __pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_12suffix_array_SuffixArrayEngine, __pyx_n_s_query_records, __pyx_t_5) < 0) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_12suffix_array_SuffixArrayEngine, __pyx_n_s_query_records, __pyx_t_5) < 0) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   PyType_Modified(__pyx_ptype_12suffix_array_SuffixArrayEngine);
 
