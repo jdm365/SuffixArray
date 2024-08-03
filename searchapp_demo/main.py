@@ -111,8 +111,9 @@ if __name__ == '__main__':
     ## DATA_DIR = '/home/jdm365/SearchApp/data'
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = CURRENT_DIR
-    FILENAME = 'companies_sorted_1M.csv'
+    ## FILENAME = 'companies_sorted_1M.csv'
     ## FILENAME = 'people_data_labs_sample.csv'
+    FILENAME = '../data/companies-2023-q4-sm.csv'
     ## FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 
@@ -120,6 +121,6 @@ if __name__ == '__main__':
             csv_filename=FILEPATH,
             )
 
-    ## os.system(f"open {os.path.join(CURRENT_DIR, 'index.html')}")
+    os.system(f"open {os.path.join(CURRENT_DIR, 'index.html')}")
 
     app.run()

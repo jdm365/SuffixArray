@@ -33,10 +33,18 @@ void bench_optimized_suffix_array_construction(
 	struct timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 
+	/*
 	construct_truncated_suffix_array_from_csv_partitioned(
 			filename,
 			0,
 			&suffix_array_struct
+			);
+	*/
+	construct_truncated_suffix_array_from_csv_partitioned_mmap(
+			filename,
+			0,
+			&suffix_array_struct,
+			1
 			);
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 	double time_taken = (end_time.tv_sec - start_time.tv_sec) + 
@@ -84,7 +92,7 @@ int main() {
 
 	const uint32_t max_suffix_length = 32;
 	bench_optimized_suffix_array_construction(filename, max_suffix_length);
-	bench_libsais(filename);
+	// bench_libsais(filename);
 
 	return 0;
 }
