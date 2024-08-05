@@ -69,27 +69,27 @@ void write_buffer_bit(const buffer_bit* char_buffer, FILE* file);
 void read_buffer_bit(buffer_bit* char_buffer, FILE* file);
 
 
-typedef struct SuffixArray {
+typedef struct SuffixArray_struct {
 	uint32_t*   suffix_array;
 	buffer_bit* is_quoted_bitflag;
 	uint64_t  	global_byte_start_idx;
 	uint64_t  	global_byte_end_idx;
 	uint32_t  	max_suffix_length;
 	uint32_t  	n;
-} SuffixArray;
+} SuffixArray_struct;
 
-void init_suffix_array(SuffixArray* suffix_array, uint32_t max_suffix_length);
+void init_suffix_array(SuffixArray_struct* suffix_array, uint32_t max_suffix_length);
 void init_suffix_array_byte_idxs(
-		SuffixArray* suffix_array, 
+		SuffixArray_struct* suffix_array, 
 		uint32_t max_suffix_length,
 		uint64_t global_byte_start_idx,
 		uint64_t global_byte_end_idx,
 		uint32_t n
 		);
-void free_suffix_array(SuffixArray* suffix_array);
-void read_suffix_array(SuffixArray* suffix_array, const char* filename);
+void free_suffix_array(SuffixArray_struct* suffix_array);
+void read_suffix_array(SuffixArray_struct* suffix_array, const char* filename);
 void write_suffix_array(
-		const SuffixArray* suffix_array, 
+		const SuffixArray_struct* suffix_array, 
 		const char* sa_filename,
 		const char* is_quoted_filename
 		);
@@ -129,15 +129,15 @@ void read_text_into_buffer(
 void construct_truncated_suffix_array_from_csv_partitioned(
 	const char* csv_file,
 	uint32_t column_idx,
-	SuffixArray* suffix_array
+	SuffixArray_struct* suffix_array
 );
 void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	const char* csv_file,
 	uint32_t column_idx,
-	SuffixArray* suffix_array,
+	SuffixArray_struct* suffix_array,
 	uint16_t num_columns
 );
-void construct_truncated_suffix_array(const char* str, SuffixArray* suffix_array);
+void construct_truncated_suffix_array(const char* str, SuffixArray_struct* suffix_array);
 
 typedef struct pair_u32 {
 	uint32_t first;
@@ -151,13 +151,13 @@ typedef struct pair_u64 {
 
 pair_u32 get_substring_positions(
     const char* str,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
     const char* substring
 );
 
 pair_u32 get_substring_positions_file(
     FILE* file,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
     const char* substring
 );
 
@@ -169,7 +169,7 @@ pair_u32 get_substring_positions_file_disk(
 
 uint32_t get_matching_records(
 	const char* str,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
 	const char* substring,
 	uint32_t k,
 	char** matching_records
@@ -177,8 +177,17 @@ uint32_t get_matching_records(
 
 uint32_t get_matching_records_file(
 	const char* filename,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
 	const char* substring,
 	uint32_t k,
 	char** matching_records
 );
+
+void parse_line(
+		const char* line,
+		buffer_bit* is_quoted_bitflag,
+		buffer_c* text,
+		buffer_u32* suffix_array_mapping,
+		uint32_t file_pos,
+		uint32_t column_idx
+		);

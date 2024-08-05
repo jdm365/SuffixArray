@@ -14,7 +14,7 @@ COMPILER_FLAGS = [
     "-Wno-unused-variable",
     "-Wno-unknown-pragmas",
     "-Wno-unused-result",
-    "-fopenmp",
+    ## "-fopenmp",
     ## "-fPIC",
 ]
 
@@ -22,7 +22,8 @@ LINK_ARGS = [
     ## "-lc++",
     ## "-lc++abi",
     "-L/usr/local/lib",
-    "-lgomp",
+    ## "-lgomp",
+    "-lomp",
     ]
 
 

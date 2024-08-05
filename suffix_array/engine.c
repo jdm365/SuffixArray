@@ -72,7 +72,7 @@ inline uint32_t rfc4180_getline(char** lineptr, uint32_t* n, FILE* stream) {
 }
 
 
-inline void parse_line(
+void parse_line(
 		const char* line,
 		buffer_bit* is_quoted_bitflag,
 		buffer_c* text,
@@ -280,7 +280,7 @@ void free_buffer_bit(buffer_bit* buffer) {
 }
 
 void init_suffix_array(
-		SuffixArray* suffix_array, 
+		SuffixArray_struct* suffix_array, 
 		uint32_t max_suffix_length
 		) {
 	if (suffix_array == NULL) {
@@ -297,7 +297,7 @@ void init_suffix_array(
 }
 
 void init_suffix_array_byte_idxs(
-		SuffixArray* suffix_array, 
+		SuffixArray_struct* suffix_array, 
 		uint32_t max_suffix_length,
 		uint64_t global_byte_start_idx,
 		uint64_t global_byte_end_idx,
@@ -316,7 +316,7 @@ void init_suffix_array_byte_idxs(
 	suffix_array->global_byte_end_idx   = global_byte_end_idx;
 }
 
-void free_suffix_array(SuffixArray* suffix_array) {
+void free_suffix_array(SuffixArray_struct* suffix_array) {
 	free(suffix_array->suffix_array);
 	free_buffer_bit(suffix_array->is_quoted_bitflag);
 }
@@ -324,7 +324,7 @@ void free_suffix_array(SuffixArray* suffix_array) {
 void construct_truncated_suffix_array_from_csv_partitioned(
 	const char* csv_file,
 	uint32_t column_idx,
-	SuffixArray* suffix_array
+	SuffixArray_struct* suffix_array
 ) {
 
 	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
@@ -435,7 +435,7 @@ static inline void iter_line_idx(
 void construct_truncated_suffix_array_from_csv_partitioned_new(
 	const char* csv_file,
 	uint32_t column_idx,
-	SuffixArray* suffix_array,
+	SuffixArray_struct* suffix_array,
 	uint16_t num_columns
 ) {
 	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
@@ -596,7 +596,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_new(
 void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	const char* csv_file,
 	uint32_t column_idx,
-	SuffixArray* suffix_array,
+	SuffixArray_struct* suffix_array,
 	uint16_t num_columns
 ) {
 	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
@@ -604,9 +604,6 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	// TODO: Adjust for multithreading correctness.
 	struct timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
-
-	// Read and parse the CSV file.
-	uint32_t file_pos = suffix_array->global_byte_start_idx;
 
 	// mmap
 	int fd = open(csv_file, O_RDONLY);
@@ -625,18 +622,14 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	size_t length = min(TWO_GB, sb.st_size - suffix_array->global_byte_start_idx);
 
 	size_t page_size = sysconf(_SC_PAGE_SIZE);
-	size_t aligned_offset = offset - (offset % page_size);
-
-	size_t adjusted_length = length + (offset - aligned_offset);
 
 	// start from byte pos mmap
 	char* file = (char*)mmap(
 			NULL, 
-			adjusted_length,
+			sb.st_size,
 			PROT_READ, 
 			MAP_PRIVATE, 
 			fd, 
-			// aligned_offset
 			0
 			);
 
@@ -651,12 +644,14 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	init_buffer_bit(suffix_array->is_quoted_bitflag, num_lines_guess);
 
-	uint16_t col_idx = 0;
-	file_pos = 0;
+	// Read and parse the CSV file.
+	uint64_t file_pos 	 = suffix_array->global_byte_start_idx;
+	uint64_t end_point   = min(file_pos + TWO_GB, length);
+	uint32_t buffer_pos  = 0;
+	uint16_t col_idx     = 0;
 
-	uint32_t endpoint = min(TWO_GB, length);
-	while (file_pos < endpoint) {
-		while ((uint32_t)col_idx != column_idx) {
+	while (file_pos < end_point) {
+		while (col_idx != column_idx) {
 			if (file[file_pos] == '"') {
 				// Skip to next unescaped quote
 				++file_pos;
@@ -665,17 +660,17 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 					if (file[file_pos] == '"') {
 						if (file[file_pos + 1] == '"') {
 							file_pos += 2;
-							if (file_pos >= endpoint) goto end;
+							if (file_pos >= end_point) goto end;
 							continue;
 						} 
 						else {
 							++file_pos;
-							if (file_pos >= endpoint) goto end;
+							if (file_pos >= end_point) goto end;
 							break;
 						}
 					}
 					++file_pos;
-					if (file_pos >= endpoint) goto end;
+					if (file_pos >= end_point) goto end;
 				}
 			}
 
@@ -683,7 +678,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 				col_idx = (col_idx + 1) % num_columns;
 			}
 			++file_pos;
-			if (file_pos >= endpoint) goto end;
+			if (file_pos >= end_point) goto end;
 		}
 
 		uint8_t quoted_field = (file[file_pos] == '"');
@@ -742,9 +737,10 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	end:
 
-	munmap(file, adjusted_length);
+	munmap(file, sb.st_size);
 
-	suffix_array->global_byte_end_idx = file_pos + suffix_array->global_byte_start_idx;
+	suffix_array->global_byte_end_idx = file_pos;
+	uint32_t bytes_read = end_point - suffix_array->global_byte_start_idx;
 
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 	double elapsed = (end_time.tv_sec - start_time.tv_sec) + 
@@ -755,7 +751,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	printf("Final buffer size:          %u\n", suffix_array_mapping.buffer_idx);
 	printf("Time to read and parse CSV: %f\n", elapsed);
-	printf("Mb/s:                       %f\n\n", ((double)file_pos / (1024 * 1024)) / elapsed);
+	printf("Mb/s:                       %f\n\n", ((double)bytes_read / (1024 * 1024)) / elapsed);
 
 
 	suffix_array->n = suffix_array_mapping.buffer_idx;
@@ -969,7 +965,7 @@ void read_text_into_buffer(
 	fclose(file);
 }
 
-void construct_truncated_suffix_array(const char* str, SuffixArray* suffix_array) {
+void construct_truncated_suffix_array(const char* str, SuffixArray_struct* suffix_array) {
 	struct timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 
@@ -1003,7 +999,7 @@ void construct_truncated_suffix_array(const char* str, SuffixArray* suffix_array
 
 pair_u32 get_substring_positions(
     const char* str,
-    const SuffixArray* suffix_array,
+    const SuffixArray_struct* suffix_array,
     const char* substring
 ) {
     uint32_t m 	   = strlen(substring);
@@ -1054,7 +1050,7 @@ pair_u32 get_substring_positions(
 
 pair_u32 get_substring_positions_file(
 	FILE* file,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
     const char* substring
 ) {
     uint32_t m 	   = strlen(substring);
@@ -1247,7 +1243,7 @@ void read_buffer_bit(buffer_bit* buffer, FILE* file) {
 }
 
 void write_suffix_array(
-		const SuffixArray* suffix_array,
+		const SuffixArray_struct* suffix_array,
 		const char* sa_filename,
 		const char* is_quoted_filename
 		) {
@@ -1304,7 +1300,7 @@ void read_into_suffix_array_file(
 
 uint32_t get_matching_records(
 	const char* str,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
 	const char* substring,
 	uint32_t k,
 	char** matching_records
@@ -1462,7 +1458,7 @@ static inline uint32_t rfc4180_seek_forward_newline(
 
 uint32_t get_matching_records_file(
 	const char* filename,
-	const SuffixArray* suffix_array,
+	const SuffixArray_struct* suffix_array,
 	const char* substring,
 	uint32_t k,
 	char** matching_records
@@ -1491,7 +1487,7 @@ uint32_t get_matching_records_file(
 	uint64_t total_bytes_file = ftell(file);
 
 	assert(suffix_array->global_byte_start_idx < total_bytes_file);
-	assert(suffix_array->global_byte_end_idx  == total_bytes_file);
+	// assert(suffix_array->global_byte_end_idx  == total_bytes_file);
 	assert(suffix_array->is_quoted_bitflag->buffer_bit_idx == suffix_array->n);
 
 	uint32_t match_idx = 0;

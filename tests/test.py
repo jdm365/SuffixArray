@@ -4,7 +4,7 @@ from time import perf_counter
 import os
 
 import pysubstringsearch
-from suffix_array import SuffixArrayEngine
+from suffix_array import SuffixArray
 
 
 def test_pysubstring_search(csv_file: str, search_col: str):
@@ -66,7 +66,7 @@ def test_suffix_array_document_constructor(csv_file: str, search_col: str):
     rand_companies = [x for x in companies.sample(N)]
     list_companies = companies.to_list()
 
-    suffix_array = SuffixArrayEngine(
+    suffix_array = SuffixArray(
             max_suffix_length=32
             )
     init = perf_counter()
@@ -105,7 +105,7 @@ def test_suffix_array_csv_constructor(csv_file: str, search_col: str):
     N = 10_000
     rand_companies = [x for x in companies.sample(N)]
 
-    suffix_array = SuffixArrayEngine(
+    suffix_array = SuffixArray(
             max_suffix_length=32
             )
     init = perf_counter()

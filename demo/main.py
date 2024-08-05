@@ -2,9 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 import os
-import polars as pl
 from time import perf_counter
-from suffix_array import SuffixArrayEngine
+from suffix_array import SuffixArray
 import json
 import csv
 from functools import lru_cache
@@ -28,12 +27,12 @@ def search():
 class SearchApp:
     def __init__(self, csv_filename: str) -> None:
 
-        self.search_col = 'name'
+        self.search_col = 'title'
 
         self.csv_filename = csv_filename
         self.column_names = self.get_column_names()
 
-        self.reader = SuffixArrayEngine(max_suffix_length=32)
+        self.reader = SuffixArray(max_suffix_length=32)
 
         '''
         init = perf_counter()
@@ -113,7 +112,9 @@ if __name__ == '__main__':
     DATA_DIR = CURRENT_DIR
     ## FILENAME = 'companies_sorted_1M.csv'
     ## FILENAME = 'people_data_labs_sample.csv'
-    FILENAME = '../data/companies-2023-q4-sm.csv'
+    ## FILENAME = '../data/companies-2023-q4-sm.csv'
+    ## FILENAME = 'mb.csv'
+    FILENAME = 'mb_small.csv'
     ## FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 

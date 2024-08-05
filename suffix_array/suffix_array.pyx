@@ -37,7 +37,7 @@ from time import perf_counter
 cdef extern from "engine.h":
     ## define opaque type
     ctypedef struct buffer_bit
-    ctypedef struct SuffixArray:
+    ctypedef struct SuffixArray_struct:
         uint32_t*   suffix_array
         buffer_bit* is_quoted_bitflag
         uint64_t    global_byte_start_idx
@@ -46,36 +46,36 @@ cdef extern from "engine.h":
         uint32_t    n
 
 
-    void init_suffix_array(SuffixArray* suffix_array, uint32_t max_suffix_length) nogil
+    void init_suffix_array(SuffixArray_struct* suffix_array, uint32_t max_suffix_length) nogil
     void init_suffix_array_byte_idxs(
-        SuffixArray* suffix_array,
+        SuffixArray_struct* suffix_array,
         uint32_t max_suffix_length,
         uint64_t byte_start_idx,
         uint64_t byte_end_idx,
         uint32_t num_bytes
     ) nogil
-    void construct_truncated_suffix_array(const char* text, SuffixArray* suffix_array) nogil
+    void construct_truncated_suffix_array(const char* text, SuffixArray_struct* suffix_array) nogil
     void construct_truncated_suffix_array_from_csv_partitioned(
         const char* csv_file,
         uint32_t column_idx,
-        SuffixArray* suffix_array
+        SuffixArray_struct* suffix_array
     ) nogil
     void construct_truncated_suffix_array_from_csv_partitioned_mmap(
         const char* csv_file,
         uint32_t column_idx,
-        SuffixArray* suffix_array,
+        SuffixArray_struct* suffix_array,
         uint16_t num_columns
     ) nogil
     uint32_t get_matching_records(
         const char* text,
-        const SuffixArray* suffix_array,
+        const SuffixArray_struct* suffix_array,
         const char* substring,
         uint32_t k,
         char** matching_records
     )
     uint32_t get_matching_records_file(
         const char* text,
-        const SuffixArray* suffix_array,
+        const SuffixArray_struct* suffix_array,
         const char* substring,
         uint32_t k,
         char** matching_records
@@ -88,9 +88,9 @@ cdef void lowercase_string(char* s, uint64_t length):
             s[i] += 32
 
 
-cdef class SuffixArrayEngine:
+cdef class SuffixArray:
     cdef char*          text
-    cdef SuffixArray**  suffix_arrays
+    cdef SuffixArray_struct**  suffix_arrays
     cdef uint32_t       num_rows
     cdef uint32_t       max_suffix_length
     cdef uint32_t       search_col_idx 
@@ -129,7 +129,7 @@ cdef class SuffixArrayEngine:
         cdef uint32_t rem_bytes = self.text_length % TWO_GB
 
         self.num_partitions = max(1, (self.text_length // TWO_GB) + (rem_bytes > 0))
-        self.suffix_arrays  = <SuffixArray**>malloc(self.num_partitions * sizeof(SuffixArray*))
+        self.suffix_arrays  = <SuffixArray_struct**>malloc(self.num_partitions * sizeof(SuffixArray_struct*))
 
         cdef uint32_t num_bytes
         cdef uint64_t end_byte
@@ -183,10 +183,10 @@ cdef class SuffixArrayEngine:
         two_gb   = 2 * 1024 * 1024 * 1024
 
         self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
-        self.suffix_arrays  = <SuffixArray**>malloc(self.num_partitions * sizeof(SuffixArray*))
+        self.suffix_arrays  = <SuffixArray_struct**>malloc(self.num_partitions * sizeof(SuffixArray_struct*))
 
         for idx in range(self.num_partitions):
-            self.suffix_arrays[idx] = <SuffixArray*>malloc(sizeof(SuffixArray))
+            self.suffix_arrays[idx] = <SuffixArray_struct*>malloc(sizeof(SuffixArray_struct))
             init_suffix_array(self.suffix_arrays[idx], self.max_suffix_length)
 
         f_name = self.csv_filename.encode('utf-8')
