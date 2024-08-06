@@ -113,8 +113,8 @@ if __name__ == '__main__':
     ## FILENAME = 'companies_sorted_1M.csv'
     ## FILENAME = 'people_data_labs_sample.csv'
     ## FILENAME = '../data/companies-2023-q4-sm.csv'
-    ## FILENAME = 'mb.csv'
-    FILENAME = 'mb_small.csv'
+    FILENAME = 'mb.csv'
+    ## FILENAME = 'mb_small.csv'
     ## FILENAME = 'companies_100M.csv'
     FILEPATH = os.path.join(DATA_DIR, FILENAME)
 

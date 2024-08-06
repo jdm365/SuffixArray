@@ -73,12 +73,13 @@ cdef extern from "engine.h":
         uint32_t k,
         char** matching_records
     )
-    uint32_t get_matching_records_file(
+    void get_matching_records_file(
         const char* text,
         const SuffixArray_struct* suffix_array,
         const char* substring,
         uint32_t k,
-        char** matching_records
+        char** matching_records,
+        uint32_t* num_matches
     )
 
 cdef void lowercase_string(char* s, uint64_t length):
@@ -192,6 +193,7 @@ cdef class SuffixArray:
         f_name = self.csv_filename.encode('utf-8')
         cdef char* c_filename = f_name
 
+        print(self.num_partitions)
         cdef uint16_t num_columns = len(self.columns)
         with nogil:
             self.suffix_arrays[0].global_byte_start_idx = 0
@@ -219,6 +221,9 @@ cdef class SuffixArray:
             )
 
             '''
+            idx += 1
+            printf("Idx: %u\n", idx)
+
             construct_truncated_suffix_array_from_csv_partitioned_mmap(
                 c_filename,
                 self.search_col_idx,
@@ -242,23 +247,30 @@ cdef class SuffixArray:
 
         for i in range(self.num_partitions - 1):
 
-            num_matches = get_matching_records_file(
+            ## TODO: Include current offset. Allocate k from the start.
+            get_matching_records_file(
                     c_filename,
                     self.suffix_arrays[i],
                     substring.lower().encode('utf-8'),
                     k,
-                    records
+                    records,
+                    &num_matches
                     )
             for j in range(num_matches):
                 all_records.append(records[j].decode('utf-8'))
 
-        num_matches = get_matching_records_file(
-                c_filename,
-                self.suffix_arrays[self.num_partitions - 1],
-                substring.lower().encode('utf-8'),
-                k,
-                records
-                )
+            if num_matches == k:
+                break
+
+        if num_matches != k:
+            get_matching_records_file(
+                    c_filename,
+                    self.suffix_arrays[self.num_partitions - 1],
+                    substring.lower().encode('utf-8'),
+                    k,
+                    records,
+                    &num_matches
+                    )
 
         if num_matches == 0:
             free(records)

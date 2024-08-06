@@ -229,7 +229,8 @@ void init_buffer_bit(buffer_bit* buffer, uint32_t buffer_capacity) {
 }
 
 void copy_buffer_bit(buffer_bit* src, buffer_bit* dst) {
-	memcpy(dst->buffer, src->buffer, src->buffer_capacity);
+	// assert(src->buffer_capacity == dst->buffer_capacity);
+	memcpy(dst->buffer, src->buffer, src->buffer_bit_idx / 8);
 	dst->buffer_capacity = src->buffer_capacity;
 	dst->buffer_bit_idx  = src->buffer_bit_idx;
 }
@@ -382,7 +383,7 @@ void construct_truncated_suffix_array_from_csv_partitioned(
 	double elapsed = (end_time.tv_sec - start_time.tv_sec) + 
 					 (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
 	printf("Time to read and parse CSV: %f\n", elapsed);
-	printf("Mb/s: %f\n", ((double)bytes_read / (1024 * 1024)) / elapsed);
+	printf("Mb/s: %f\n\n", ((double)bytes_read / (1024 * 1024)) / elapsed);
 
 
 	suffix_array->n = suffix_array_mapping.buffer_idx;
@@ -646,9 +647,13 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	// Read and parse the CSV file.
 	uint64_t file_pos 	 = suffix_array->global_byte_start_idx;
-	uint64_t end_point   = min(file_pos + TWO_GB, length);
+	uint64_t end_point   = min(file_pos + TWO_GB, file_pos + length);
 	uint32_t buffer_pos  = 0;
 	uint16_t col_idx     = 0;
+
+	printf("file_pos: %llu\n", file_pos);
+	printf("end_point: %llu\n", end_point);
+	fflush(stdout);
 
 	while (file_pos < end_point) {
 		while (col_idx != column_idx) {
@@ -740,7 +745,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	munmap(file, sb.st_size);
 
 	suffix_array->global_byte_end_idx = file_pos;
-	uint32_t bytes_read = end_point - suffix_array->global_byte_start_idx;
+	suffix_array->n = end_point - suffix_array->global_byte_start_idx;
 
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 	double elapsed = (end_time.tv_sec - start_time.tv_sec) + 
@@ -751,7 +756,7 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 
 	printf("Final buffer size:          %u\n", suffix_array_mapping.buffer_idx);
 	printf("Time to read and parse CSV: %f\n", elapsed);
-	printf("Mb/s:                       %f\n\n", ((double)bytes_read / (1024 * 1024)) / elapsed);
+	printf("Mb/s:                       %f\n\n", ((double)suffix_array->n / (1024 * 1024)) / elapsed);
 
 
 	suffix_array->n = suffix_array_mapping.buffer_idx;
@@ -1067,11 +1072,10 @@ pair_u32 get_substring_positions_file(
     // Binary search for the first occurrence of the substring
     while (first <= last) {
         uint32_t mid = (first + last) / 2;
-		fseek(
-				file,
-				suffix_array->global_byte_start_idx + (uint64_t)suffix_array->suffix_array[mid],
-				SEEK_SET
-				);
+		uint64_t seek_pos = suffix_array->global_byte_start_idx + 
+							(uint64_t)suffix_array->suffix_array[mid];
+
+		fseek(file, seek_pos, SEEK_SET);
 		fread(line, 1, cmp_length, file);
 
 		for (uint32_t i = 0; i < cmp_length; ++i) {
@@ -1084,7 +1088,7 @@ pair_u32 get_substring_positions_file(
             first = mid + 1;
         }
         else {
-            last  = mid - 1;
+            last = mid - 1;
 			if (cmp == 0) {
 				start = mid;
 			}
@@ -1102,11 +1106,10 @@ pair_u32 get_substring_positions_file(
 	last  = suffix_array->n - 1;
     while (first <= last) {
         uint32_t mid = (first + last) / 2;
-		fseek(
-				file,
-				suffix_array->global_byte_start_idx + (uint64_t)suffix_array->suffix_array[mid],
-				SEEK_SET
-				);
+		uint64_t seek_pos = suffix_array->global_byte_start_idx + 
+							(uint64_t)suffix_array->suffix_array[mid];
+
+		fseek(file, seek_pos, SEEK_SET);
 		fread(line, 1, cmp_length, file);
 
 		for (uint32_t i = 0; i < cmp_length; ++i) {
@@ -1456,12 +1459,13 @@ static inline uint32_t rfc4180_seek_forward_newline(
 }
 
 
-uint32_t get_matching_records_file(
+void get_matching_records_file(
 	const char* filename,
 	const SuffixArray_struct* suffix_array,
 	const char* substring,
 	uint32_t k,
-	char** matching_records
+	char** matching_records,
+	uint32_t* num_matches
 ) {
 	FILE* file = fopen(filename, "r");
 	if (file == NULL) {
@@ -1475,23 +1479,25 @@ uint32_t get_matching_records_file(
 			substring
 			);
 
-	if ((match_idxs.first == UINT32_MAX) || (match_idxs.second == UINT32_MAX) || (match_idxs.first == match_idxs.second + 1)) {
+	if (
+			(match_idxs.first == UINT32_MAX) 
+				|| 
+			(match_idxs.second == UINT32_MAX) 
+				|| 
+			(match_idxs.first == match_idxs.second + 1)
+		) {
 		fclose(file);
-		return 0;
 	}
 
-	uint32_t num_matches = min(k, match_idxs.second - match_idxs.first + 1);
-
+	uint32_t _num_matches = min(k - *num_matches, match_idxs.second - match_idxs.first + 1);
 
 	fseek(file, 0, SEEK_END);
 	uint64_t total_bytes_file = ftell(file);
 
 	assert(suffix_array->global_byte_start_idx < total_bytes_file);
-	// assert(suffix_array->global_byte_end_idx  == total_bytes_file);
 	assert(suffix_array->is_quoted_bitflag->buffer_bit_idx == suffix_array->n);
 
-	uint32_t match_idx = 0;
-	for (uint32_t i = match_idxs.first; i < match_idxs.first + num_matches; ++i) {
+	for (uint32_t i = match_idxs.first; i < match_idxs.first + _num_matches; ++i) {
 		uint8_t is_quoted 	 = get_buffer_bit(suffix_array->is_quoted_bitflag, i);
 		uint64_t byte_offset = (uint64_t)suffix_array->suffix_array[i] + 
 										 suffix_array->global_byte_start_idx;
@@ -1514,9 +1520,7 @@ uint32_t get_matching_records_file(
 		fread(record, 1, num_chars_back + num_chars_ahead, file);
 		record[num_chars_back + num_chars_ahead] = '\0';
 
-		matching_records[match_idx++] = record;
+		matching_records[(*num_matches)++] = record;
 	}
 	fclose(file);
-
-	return num_matches;
 }

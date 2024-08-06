@@ -175,12 +175,13 @@ uint32_t get_matching_records(
 	char** matching_records
 );
 
-uint32_t get_matching_records_file(
+void get_matching_records_file(
 	const char* filename,
 	const SuffixArray_struct* suffix_array,
 	const char* substring,
 	uint32_t k,
-	char** matching_records
+	char** matching_records,
+	uint32_t* num_matches
 );
 
 void parse_line(
