@@ -193,7 +193,6 @@ cdef class SuffixArray:
         f_name = self.csv_filename.encode('utf-8')
         cdef char* c_filename = f_name
 
-        print(self.num_partitions)
         cdef uint16_t num_columns = len(self.columns)
         with nogil:
             self.suffix_arrays[0].global_byte_start_idx = 0

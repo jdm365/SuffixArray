@@ -3,10 +3,134 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 #define DEFAULT_PAGE_SIZE (uint64_t)4096
 #define NUM_BUCKETS 	  (uint32_t)256
+#define MAX_COUMNS		  4096
+
+inline uint32_t rfc4180_getline(char** lineptr, uint32_t* n, FILE* stream) {
+    if (lineptr == NULL || n == NULL || stream == NULL) {
+        return UINT32_MAX;
+    }
+
+    uint32_t len = 0;
+    int c;
+    int in_quotes = 0;
+
+    if (*lineptr == NULL) {
+        *n = 128;
+        *lineptr = (char *)malloc(*n);
+        if (*lineptr == NULL) {
+            return UINT32_MAX;
+        }
+    }
+
+    while ((c = fgetc(stream)) != EOF) {
+        if (len + 1 >= *n) {
+            *n *= 2;
+            char *new_lineptr = (char*)realloc(*lineptr, *n);
+            if (new_lineptr == NULL) {
+                return UINT32_MAX;
+            }
+            *lineptr = new_lineptr;
+        }
+
+        (*lineptr)[len++] = c;
+
+        if (c == '"') {
+            in_quotes = !in_quotes;
+        } else if (c == '\n' && !in_quotes) {
+            break;
+        }
+    }
+
+    if (ferror(stream)) {
+        return UINT32_MAX;
+    }
+
+    if (len == 0 && c == EOF) {
+        return UINT32_MAX;
+    }
+
+    (*lineptr)[len] = '\0';
+    return len;
+}
+
+
+inline void parse_csv_header(
+		FILE* fh,
+		char** columns,
+		uint16_t* num_columns
+		) {
+	char* line;
+	uint32_t num_bytes;
+	rfc4180_getline(&line, &num_bytes, fh);
+	size_t char_idx = 0;
+	size_t last_idx = 0;
+	size_t col_idx  = 0;
+
+	columns = (char**)malloc(MAX_COUMNS * sizeof(char*));
+
+	while (1) {
+		if (line[char_idx] == ',') {
+			columns[col_idx] = (char*)malloc((char_idx - last_idx) * sizeof(char));
+			strncpy(
+					columns[col_idx],
+					&line[last_idx],
+					char_idx - last_idx
+					);
+
+			++col_idx;
+			++char_idx;
+			last_idx = char_idx;
+		} else if (line[char_idx] == '"') {
+			++char_idx;
+			while (1) {
+				if (line[char_idx] == '"') {
+					if (line[char_idx + 1] == '"') {
+						char_idx += 2;
+						break;
+					} else {
+						++char_idx;
+						columns[col_idx] = (char*)malloc((char_idx - last_idx - 2) * sizeof(char));
+						strncpy(
+								columns[col_idx],
+								&line[last_idx],
+								char_idx - last_idx
+								);
+
+						++col_idx;
+						++char_idx;
+						last_idx = char_idx;
+						break;
+					}
+				}
+				++char_idx;
+			}
+		} else if ((line[char_idx] == '\n') || (line[char_idx] == '\0')) {
+		    columns[col_idx] = (char*)malloc((char_idx - last_idx) * sizeof(char));
+			strncpy(
+					columns[col_idx],
+					&line[last_idx],
+					char_idx - last_idx
+					);
+			// TODO: To lower.
+
+			++col_idx;
+			++char_idx;
+			last_idx = char_idx;
+			break;
+		} else {
+			++char_idx;
+		}
+	}
+
+	*num_columns = col_idx;
+	columns = (char**)realloc(columns, (size_t)num_columns);
+}
+
 
 typedef struct buffer_c {
 	char* 	  buffer;
@@ -109,6 +233,24 @@ void read_into_suffix_array_file(
 		);
 void free_suffix_array_file(SuffixArrayFile* suffix_array_file);
 
+typedef struct SuffixArrayIndex {
+	// TODO: Make union
+	SuffixArray_struct* suffix_arrays;
+	SuffixArrayFile* suffix_array_files;
+
+	FILE* file_handle;
+	buffer_u32 search_col_idxs;
+	uint16_t num_partitions;
+	uint16_t num_columns;
+} SuffixArrayIndex;
+
+void init_suffix_array_index(
+		const char* filename,
+		SuffixArrayIndex* suffix_array_index,
+		uint32_t max_suffix_length,
+		char** search_cols,
+		uint32_t num_search_cols
+		);
 
 void recursive_bucket_sort(
 	const char* str,
@@ -137,6 +279,13 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	SuffixArray_struct* suffix_array,
 	uint16_t num_columns
 );
+SuffixArrayIndex construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+	const char* csv_file,
+	uint32_t max_suffix_length,
+	char**   search_cols,
+	uint32_t num_search_cols
+);
+
 void construct_truncated_suffix_array(const char* str, SuffixArray_struct* suffix_array);
 
 typedef struct pair_u32 {

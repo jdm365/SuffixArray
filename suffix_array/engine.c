@@ -23,53 +23,6 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-inline uint32_t rfc4180_getline(char** lineptr, uint32_t* n, FILE* stream) {
-    if (lineptr == NULL || n == NULL || stream == NULL) {
-        return UINT32_MAX;
-    }
-
-    uint32_t len = 0;
-    int c;
-    int in_quotes = 0;
-
-    if (*lineptr == NULL) {
-        *n = 128;
-        *lineptr = (char *)malloc(*n);
-        if (*lineptr == NULL) {
-            return UINT32_MAX;
-        }
-    }
-
-    while ((c = fgetc(stream)) != EOF) {
-        if (len + 1 >= *n) {
-            *n *= 2;
-            char *new_lineptr = (char*)realloc(*lineptr, *n);
-            if (new_lineptr == NULL) {
-                return UINT32_MAX;
-            }
-            *lineptr = new_lineptr;
-        }
-
-        (*lineptr)[len++] = c;
-
-        if (c == '"') {
-            in_quotes = !in_quotes;
-        } else if (c == '\n' && !in_quotes) {
-            break;
-        }
-    }
-
-    if (ferror(stream)) {
-        return UINT32_MAX;
-    }
-
-    if (len == 0 && c == EOF) {
-        return UINT32_MAX;
-    }
-
-    (*lineptr)[len] = '\0';
-    return len;
-}
 
 
 void parse_line(
@@ -430,168 +383,6 @@ static inline void iter_line_idx(
 		*line_idx = 0;
 		fread(line, 1, 4096, file);
 	}
-}
-
-
-void construct_truncated_suffix_array_from_csv_partitioned_new(
-	const char* csv_file,
-	uint32_t column_idx,
-	SuffixArray_struct* suffix_array,
-	uint16_t num_columns
-) {
-	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
-
-	// TODO: Adjust for multithreading correctness.
-	struct timespec start_time, end_time;
-	clock_gettime(CLOCK_MONOTONIC, &start_time);
-
-	// Read and parse the CSV file.
-	FILE* file = fopen(csv_file, "r");
-	if (file == NULL) {
-		printf("Error: File not found\n");
-		exit(1);
-	}
-
-	char     line[4096];
-	uint16_t line_idx   = 0;
-	uint16_t col_idx 	= 0;
-	uint32_t len  		= 0;
-	uint32_t bytes_read = 0;
-	uint32_t file_pos 	= suffix_array->global_byte_start_idx;
-	uint32_t read;
-
-	uint32_t num_lines_guess = TWO_GB / (suffix_array->max_suffix_length * 8);
-	uint32_t num_bytes_guess = num_lines_guess * suffix_array->max_suffix_length;
-	fseek(file, suffix_array->global_byte_start_idx, SEEK_SET);
-
-	buffer_c text;
-	init_buffer_c(&text, num_bytes_guess);
-
-	buffer_u32 suffix_array_mapping;
-	init_buffer_u32(&suffix_array_mapping, num_bytes_guess);
-
-	init_buffer_bit(suffix_array->is_quoted_bitflag, num_lines_guess);
-
-	while (bytes_read < TWO_GB) {
-		while (col_idx != column_idx) {
-			if (line[line_idx] == '"') {
-				// Skip to next unescaped quote
-				iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-
-				while (1) {
-					if (line[line_idx] == '"') {
-						if (line[line_idx + 1] == '"') {
-							iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-							iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-							continue;
-						} 
-						else {
-							iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-							break;
-						}
-					}
-					iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-				}
-			}
-
-			if (line[line_idx] == ',') {
-				col_idx = (col_idx + 1) % num_columns;
-			}
-			iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-		}
-
-		uint8_t quoted_field = (line[line_idx] == '"');
-		if (quoted_field) {
-			iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-
-			while (1) {
-				if (line[line_idx] == '"' && line[line_idx + 1] == '"') {
-					append_buffer_c(&text, line[line_idx]);
-					append_buffer_u32(&suffix_array_mapping, file_pos + line_idx);
-					append_buffer_bit(suffix_array->is_quoted_bitflag, 1);
-					iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-					iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-					continue;
-				}
-
-				if (
-						line[line_idx] == '"' 
-							&& 
-						(
-							line[line_idx + 1] == '\n' 
-								|| 
-							line[line_idx + 1] == ',' 
-								|| 
-							line[line_idx + 1] == '\0' 
-						)
-					) {
-					++line_idx;
-					break;
-				}
-
-				append_buffer_c(&text, tolower(line[line_idx]));
-				append_buffer_u32(&suffix_array_mapping, file_pos + line_idx);
-				append_buffer_bit(suffix_array->is_quoted_bitflag, 1);
-				iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-			}
-		} else {
-
-			while (1) {
-				if (line[line_idx] == '\n' || line[line_idx] == '\0' || line[line_idx] == ',') {
-					break;
-				}
-
-				append_buffer_c(&text, tolower(line[line_idx]));
-				append_buffer_u32(&suffix_array_mapping, file_pos + line_idx);
-				append_buffer_bit(suffix_array->is_quoted_bitflag, 0);
-				iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-			}
-		}
-
-		append_buffer_c(&text, '\n');
-		append_buffer_u32(&suffix_array_mapping, file_pos + line_idx);
-		append_buffer_bit(suffix_array->is_quoted_bitflag, quoted_field);
-		iter_line_idx(line, &line_idx, file, &file_pos, &bytes_read);
-	}
-	fclose(file);
-
-	suffix_array->global_byte_end_idx = file_pos;
-
-	clock_gettime(CLOCK_MONOTONIC, &end_time);
-	double elapsed = (end_time.tv_sec - start_time.tv_sec) + 
-					 (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
-	printf("Time to read and parse CSV: %f\n", elapsed);
-	printf("Mb/s: %f\n", ((double)bytes_read / (1024 * 1024)) / elapsed);
-
-
-	suffix_array->n = suffix_array_mapping.buffer_idx;
-	suffix_array->suffix_array = (uint32_t*)malloc(suffix_array->n * sizeof(uint32_t));
-
-	construct_truncated_suffix_array(text.buffer, suffix_array);
-	free_buffer_c(&text);
-
-	// Map suffix array quoted bits before remapping suffix array.
-	buffer_bit suffix_array_is_quoted_copy;
-	init_buffer_bit(&suffix_array_is_quoted_copy, suffix_array->n);
-	copy_buffer_bit(suffix_array->is_quoted_bitflag, &suffix_array_is_quoted_copy);
-
-	for (uint32_t i = 0; i < suffix_array->n; ++i) {
-		uint32_t idx = suffix_array->suffix_array[i];
-		set_buffer_bit(
-				suffix_array->is_quoted_bitflag, 
-				i, 
-				get_buffer_bit(&suffix_array_is_quoted_copy, idx)
-				);
-	}
-	free_buffer_bit(&suffix_array_is_quoted_copy);
-
-	// Remap suffix array indices to original file positions.
-	#pragma omp parallel for
-	for (uint32_t i = 0; i < suffix_array->n; ++i) {
-		suffix_array->suffix_array[i] = suffix_array_mapping.buffer[suffix_array->suffix_array[i]];
-	}
-
-	free_buffer_u32(&suffix_array_mapping);
 }
 
 void construct_truncated_suffix_array_from_csv_partitioned_mmap(
@@ -1523,4 +1314,92 @@ void get_matching_records_file(
 		matching_records[(*num_matches)++] = record;
 	}
 	fclose(file);
+}
+
+void init_suffix_array_index(
+		const char* filename,
+		SuffixArrayIndex* suffix_array_index,
+		uint32_t max_suffix_length,
+		char** search_cols,
+		uint32_t num_search_cols
+		) {
+	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
+
+	FILE* fh = suffix_array_index->file_handle;
+	fh = fopen(filename, "r");
+	if (fh == NULL) {
+		printf("Error: File not found\n");
+		exit(1);
+	}
+
+	fseek(fh, 0, SEEK_END);
+	uint64_t total_bytes = ftell(fh);
+	rewind(fh);
+
+	char** columns = NULL;
+	parse_csv_header(
+			fh, 
+			columns, 
+			&(suffix_array_index->num_columns)
+			);
+
+	for (uint32_t col_idx = 0; col_idx < suffix_array_index->num_columns; ++col_idx) {
+		for (uint32_t search_col_idx = 0; search_col_idx < num_search_cols; ++search_col_idx) {
+			if (columns[col_idx] == search_cols[search_col_idx]) {
+				append_buffer_u32(
+						&suffix_array_index->search_col_idxs,
+						col_idx
+						);
+				continue;
+			}
+		}
+	}
+
+	suffix_array_index->num_partitions = (total_bytes / TWO_GB) + 
+										 (uint16_t)((total_bytes % TWO_GB) != 0);
+	suffix_array_index->suffix_arrays = (SuffixArray_struct*)malloc(
+			suffix_array_index->num_partitions * sizeof(SuffixArray_struct)
+			);
+	suffix_array_index->suffix_array_files = (SuffixArrayFile*)malloc(
+			suffix_array_index->num_partitions * sizeof(SuffixArrayFile)
+			);
+
+	for (uint16_t partition_idx = 0; partition_idx < suffix_array_index->num_partitions; ++partition_idx) {
+		init_suffix_array(
+				suffix_array_index->suffix_arrays,
+				max_suffix_length
+				);
+	}
+}
+
+SuffixArrayIndex construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+	const char* csv_file,
+	uint32_t max_suffix_length,
+	char**   search_cols,
+	uint32_t num_search_cols
+) {
+	SuffixArrayIndex sa_index;
+	init_suffix_array_index(
+			csv_file,
+			&sa_index,
+			max_suffix_length,
+			search_cols,
+			num_search_cols
+			);
+
+	uint64_t prev_byte_end = 0;
+
+	for (uint32_t partition_idx = 0; partition_idx < sa_index.num_partitions; ++partition_idx) {
+		sa_index.suffix_arrays[partition_idx].global_byte_start_idx = prev_byte_end;
+		
+		construct_truncated_suffix_array_from_csv_partitioned_mmap(
+				csv_file,
+				sa_index.search_col_idxs.buffer[0],
+				&sa_index.suffix_arrays[partition_idx],
+				sa_index.num_columns
+				);
+		prev_byte_end = sa_index.suffix_arrays[partition_idx].global_byte_end_idx;
+	}
+
+	return sa_index;
 }
