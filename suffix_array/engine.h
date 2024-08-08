@@ -59,79 +59,6 @@ inline uint32_t rfc4180_getline(char** lineptr, uint32_t* n, FILE* stream) {
 }
 
 
-inline void parse_csv_header(
-		FILE* fh,
-		char** columns,
-		uint16_t* num_columns
-		) {
-	char* line;
-	uint32_t num_bytes;
-	rfc4180_getline(&line, &num_bytes, fh);
-	size_t char_idx = 0;
-	size_t last_idx = 0;
-	size_t col_idx  = 0;
-
-	columns = (char**)malloc(MAX_COUMNS * sizeof(char*));
-
-	while (1) {
-		if (line[char_idx] == ',') {
-			columns[col_idx] = (char*)malloc((char_idx - last_idx) * sizeof(char));
-			strncpy(
-					columns[col_idx],
-					&line[last_idx],
-					char_idx - last_idx
-					);
-
-			++col_idx;
-			++char_idx;
-			last_idx = char_idx;
-		} else if (line[char_idx] == '"') {
-			++char_idx;
-			while (1) {
-				if (line[char_idx] == '"') {
-					if (line[char_idx + 1] == '"') {
-						char_idx += 2;
-						break;
-					} else {
-						++char_idx;
-						columns[col_idx] = (char*)malloc((char_idx - last_idx - 2) * sizeof(char));
-						strncpy(
-								columns[col_idx],
-								&line[last_idx],
-								char_idx - last_idx
-								);
-
-						++col_idx;
-						++char_idx;
-						last_idx = char_idx;
-						break;
-					}
-				}
-				++char_idx;
-			}
-		} else if ((line[char_idx] == '\n') || (line[char_idx] == '\0')) {
-		    columns[col_idx] = (char*)malloc((char_idx - last_idx) * sizeof(char));
-			strncpy(
-					columns[col_idx],
-					&line[last_idx],
-					char_idx - last_idx
-					);
-			// TODO: To lower.
-
-			++col_idx;
-			++char_idx;
-			last_idx = char_idx;
-			break;
-		} else {
-			++char_idx;
-		}
-	}
-
-	*num_columns = col_idx;
-	columns = (char**)realloc(columns, (size_t)num_columns);
-}
-
-
 typedef struct buffer_c {
 	char* 	  buffer;
 	uint32_t  buffer_idx;
@@ -239,14 +166,14 @@ typedef struct SuffixArrayIndex {
 	SuffixArrayFile* suffix_array_files;
 
 	FILE* file_handle;
-	buffer_u32 search_col_idxs;
+	buffer_u32* search_col_idxs;
 	uint16_t num_partitions;
 	uint16_t num_columns;
 } SuffixArrayIndex;
 
 void init_suffix_array_index(
 		const char* filename,
-		SuffixArrayIndex* suffix_array_index,
+		SuffixArrayIndex** suffix_array_index,
 		uint32_t max_suffix_length,
 		char** search_cols,
 		uint32_t num_search_cols
@@ -279,7 +206,8 @@ void construct_truncated_suffix_array_from_csv_partitioned_mmap(
 	SuffixArray_struct* suffix_array,
 	uint16_t num_columns
 );
-SuffixArrayIndex construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+void construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+	SuffixArrayIndex** sa_index,
 	const char* csv_file,
 	uint32_t max_suffix_length,
 	char**   search_cols,

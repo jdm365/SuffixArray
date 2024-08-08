@@ -23,6 +23,79 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
+static inline void parse_csv_header(
+		FILE* fh,
+		char*** columns,
+		uint16_t* num_columns
+		) {
+	char* line;
+	uint32_t num_bytes;
+	rfc4180_getline(&line, &num_bytes, fh);
+	size_t char_idx = 0;
+	size_t last_idx = 0;
+	size_t col_idx  = 0;
+
+	*columns = (char**)malloc(MAX_COUMNS * sizeof(char*));
+
+	while (1) {
+		if (line[char_idx] == ',') {
+			(*columns)[col_idx] = (char*)malloc((char_idx - last_idx) * sizeof(char));
+			strncpy(
+					(*columns)[col_idx],
+					&line[last_idx],
+					char_idx - last_idx
+					);
+
+			++col_idx;
+			++char_idx;
+			last_idx = char_idx;
+		} else if (line[char_idx] == '"') {
+			++char_idx;
+			while (1) {
+				if (line[char_idx] == '"') {
+					if (line[char_idx + 1] == '"') {
+						char_idx += 2;
+						break;
+					} else {
+						++char_idx;
+						(*columns)[col_idx] = (char*)malloc((char_idx - last_idx - 2) * sizeof(char));
+						strncpy(
+								(*columns)[col_idx],
+								&line[last_idx],
+								char_idx - last_idx
+								);
+
+						++col_idx;
+						++char_idx;
+						last_idx = char_idx;
+						break;
+					}
+				}
+				++char_idx;
+			}
+		} else if ((line[char_idx] == '\n') || (line[char_idx] == '\0')) {
+		    (*columns)[col_idx] = (char*)malloc((char_idx - last_idx) * sizeof(char));
+			strncpy(
+					(*columns)[col_idx],
+					&line[last_idx],
+					char_idx - last_idx
+					);
+			// TODO: To lower.
+
+			++col_idx;
+			++char_idx;
+			last_idx = char_idx;
+			break;
+		} else {
+			++char_idx;
+		}
+	}
+
+	*num_columns = col_idx;
+	// *columns = (char**)realloc((*columns), (size_t)*num_columns);
+}
+
+
 
 
 void parse_line(
@@ -1318,14 +1391,15 @@ void get_matching_records_file(
 
 void init_suffix_array_index(
 		const char* filename,
-		SuffixArrayIndex* suffix_array_index,
+		SuffixArrayIndex** suffix_array_index,
 		uint32_t max_suffix_length,
 		char** search_cols,
 		uint32_t num_search_cols
 		) {
 	const uint32_t TWO_GB = (uint32_t)2 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024;
+	*suffix_array_index = (SuffixArrayIndex*)malloc(sizeof(SuffixArrayIndex));
 
-	FILE* fh = suffix_array_index->file_handle;
+	FILE* fh = (*suffix_array_index)->file_handle;
 	fh = fopen(filename, "r");
 	if (fh == NULL) {
 		printf("Error: File not found\n");
@@ -1339,49 +1413,54 @@ void init_suffix_array_index(
 	char** columns = NULL;
 	parse_csv_header(
 			fh, 
-			columns, 
-			&(suffix_array_index->num_columns)
+			&columns, 
+			&((*suffix_array_index)->num_columns)
 			);
 
-	for (uint32_t col_idx = 0; col_idx < suffix_array_index->num_columns; ++col_idx) {
+	(*suffix_array_index)->search_col_idxs = (buffer_u32*)malloc(sizeof(buffer_u32));
+	init_buffer_u32((*suffix_array_index)->search_col_idxs, num_search_cols);
+
+	for (uint32_t col_idx = 0; col_idx < (*suffix_array_index)->num_columns; ++col_idx) {
 		for (uint32_t search_col_idx = 0; search_col_idx < num_search_cols; ++search_col_idx) {
-			if (columns[col_idx] == search_cols[search_col_idx]) {
+			if (strcmp(columns[col_idx], search_cols[search_col_idx]) == 0) {
+				printf("before\n");
 				append_buffer_u32(
-						&suffix_array_index->search_col_idxs,
+						(*suffix_array_index)->search_col_idxs,
 						col_idx
 						);
+				printf("after\n");
 				continue;
 			}
 		}
 	}
 
-	suffix_array_index->num_partitions = (total_bytes / TWO_GB) + 
+	(*suffix_array_index)->num_partitions = (total_bytes / TWO_GB) + 
 										 (uint16_t)((total_bytes % TWO_GB) != 0);
-	suffix_array_index->suffix_arrays = (SuffixArray_struct*)malloc(
-			suffix_array_index->num_partitions * sizeof(SuffixArray_struct)
+	(*suffix_array_index)->suffix_arrays = (SuffixArray_struct*)malloc(
+			(*suffix_array_index)->num_partitions * sizeof(SuffixArray_struct)
 			);
-	suffix_array_index->suffix_array_files = (SuffixArrayFile*)malloc(
-			suffix_array_index->num_partitions * sizeof(SuffixArrayFile)
+	(*suffix_array_index)->suffix_array_files = (SuffixArrayFile*)malloc(
+			(*suffix_array_index)->num_partitions * sizeof(SuffixArrayFile)
 			);
 
-	for (uint16_t partition_idx = 0; partition_idx < suffix_array_index->num_partitions; ++partition_idx) {
+	for (uint16_t partition_idx = 0; partition_idx < (*suffix_array_index)->num_partitions; ++partition_idx) {
 		init_suffix_array(
-				suffix_array_index->suffix_arrays,
+				&(*suffix_array_index)->suffix_arrays[partition_idx],
 				max_suffix_length
 				);
 	}
 }
 
-SuffixArrayIndex construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+void construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+	SuffixArrayIndex** sa_index,
 	const char* csv_file,
 	uint32_t max_suffix_length,
 	char**   search_cols,
 	uint32_t num_search_cols
 ) {
-	SuffixArrayIndex sa_index;
 	init_suffix_array_index(
 			csv_file,
-			&sa_index,
+			sa_index,
 			max_suffix_length,
 			search_cols,
 			num_search_cols
@@ -1389,17 +1468,15 @@ SuffixArrayIndex construct_truncated_suffix_array_from_csv_partitioned_mmap_full
 
 	uint64_t prev_byte_end = 0;
 
-	for (uint32_t partition_idx = 0; partition_idx < sa_index.num_partitions; ++partition_idx) {
-		sa_index.suffix_arrays[partition_idx].global_byte_start_idx = prev_byte_end;
+	for (uint32_t partition_idx = 0; partition_idx < (*sa_index)->num_partitions; ++partition_idx) {
+		(*sa_index)->suffix_arrays[partition_idx].global_byte_start_idx = prev_byte_end;
 		
 		construct_truncated_suffix_array_from_csv_partitioned_mmap(
 				csv_file,
-				sa_index.search_col_idxs.buffer[0],
-				&sa_index.suffix_arrays[partition_idx],
-				sa_index.num_columns
+				(*sa_index)->search_col_idxs->buffer[0],
+				&((*sa_index)->suffix_arrays[partition_idx]),
+				(*sa_index)->num_columns
 				);
-		prev_byte_end = sa_index.suffix_arrays[partition_idx].global_byte_end_idx;
+		prev_byte_end = (*sa_index)->suffix_arrays[partition_idx].global_byte_end_idx;
 	}
-
-	return sa_index;
 }

@@ -35,8 +35,11 @@ from time import perf_counter
 
 
 cdef extern from "engine.h":
-    ## define opaque type
+    ## define opaque types
     ctypedef struct buffer_bit
+    ctypedef struct buffer_u32
+    ctypedef struct SuffixArrayFile
+
     ctypedef struct SuffixArray_struct:
         uint32_t*   suffix_array
         buffer_bit* is_quoted_bitflag
@@ -44,7 +47,22 @@ cdef extern from "engine.h":
         uint64_t    global_byte_end_idx
         uint32_t    max_suffix_length
         uint32_t    n
+    ctypedef struct SuffixArrayIndex:
+        SuffixArray_struct* suffix_arrays
+        SuffixArrayFile* suffix_array_files
 
+        FILE* file_handle
+        buffer_u32* search_col_idxs
+        uint16_t num_partitions
+        uint16_t num_columns
+
+    void construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+        SuffixArrayIndex** sa_index,
+        const char* csv_file,
+        uint32_t max_suffix_length,
+        char**   search_cols,
+        uint32_t num_search_cols
+    ) nogil
 
     void init_suffix_array(SuffixArray_struct* suffix_array, uint32_t max_suffix_length) nogil
     void init_suffix_array_byte_idxs(
@@ -101,6 +119,7 @@ cdef class SuffixArray:
     cdef str            save_dir
     cdef list           columns
     cdef uint32_t       num_partitions
+    cdef SuffixArrayIndex* sa_index
 
 
     def __init__(self, max_suffix_length: int = 64):
@@ -162,75 +181,30 @@ cdef class SuffixArray:
 
 
     cpdef void construct_truncated_suffix_array_from_csv(self, filename: str, search_column: str):
-        cdef uint64_t idx
+        utf_filename   = filename.encode("utf-8")
+        utf_search_col = search_column.encode("utf-8") 
+        self.csv_filename = filename
 
-        self.csv_filename  = filename
-        self.search_col    = search_column
+        ## TODO: Modify query function to use c metadata.
+        with open(filename, 'r') as f:
+            header = f.readline().strip().split(',')
+            ## if self.search_col not in header:
+                ## raise ValueError(f"Column {self.search_column} not found in CSV file")
 
-        if not self.csv_filename.endswith('.csv'):
-            raise ValueError("Invalid file format. Must be a CSV file")
+            self.columns = header
 
-        ## Check for column name in header.
-        ## Get column index.
-        with open(self.csv_filename, 'r') as file:
-            header = file.readline().strip().split(',')
-            if self.search_col not in header:
-                raise ValueError(f"Column {self.search_column} not found in CSV file")
+        cdef char* file = utf_filename
+        ## TODO: Allow multiple columns.
+        cdef char* search_cols = utf_search_col
 
-            self.columns        = header
-            self.search_col_idx = header.index(self.search_col)
-
-        filesize = os.path.getsize(self.csv_filename)
-        two_gb   = 2 * 1024 * 1024 * 1024
-
-        self.num_partitions = max(1, (filesize // two_gb) + (filesize % two_gb > 0))
-        self.suffix_arrays  = <SuffixArray_struct**>malloc(self.num_partitions * sizeof(SuffixArray_struct*))
-
-        for idx in range(self.num_partitions):
-            self.suffix_arrays[idx] = <SuffixArray_struct*>malloc(sizeof(SuffixArray_struct))
-            init_suffix_array(self.suffix_arrays[idx], self.max_suffix_length)
-
-        f_name = self.csv_filename.encode('utf-8')
-        cdef char* c_filename = f_name
-
-        cdef uint16_t num_columns = len(self.columns)
         with nogil:
-            self.suffix_arrays[0].global_byte_start_idx = 0
-            for idx in range(self.num_partitions - 1):
-                construct_truncated_suffix_array_from_csv_partitioned_mmap(
-                    c_filename,
-                    self.search_col_idx,
-                    self.suffix_arrays[idx],
-                    num_columns
-                )
-                '''
-                construct_truncated_suffix_array_from_csv_partitioned(
-                    c_filename,
-                    self.search_col_idx,
-                    self.suffix_arrays[idx]
-                )
-                '''
-                self.suffix_arrays[idx + 1].global_byte_start_idx = self.suffix_arrays[idx].global_byte_end_idx
-
-            '''
-            construct_truncated_suffix_array_from_csv_partitioned(
-                c_filename,
-                self.search_col_idx,
-                self.suffix_arrays[idx]
-            )
-
-            '''
-            idx += 1
-            printf("Idx: %u\n", idx)
-
-            construct_truncated_suffix_array_from_csv_partitioned_mmap(
-                c_filename,
-                self.search_col_idx,
-                self.suffix_arrays[idx],
-                num_columns
-            )
-
-
+            construct_truncated_suffix_array_from_csv_partitioned_mmap_full(
+                    &self.sa_index,
+                    file,
+                    self.max_suffix_length,
+                    &search_cols,
+                    1
+                    )
 
     cpdef query_records(self, substring: str, k: int = 1000):
         if substring == '':
@@ -249,7 +223,8 @@ cdef class SuffixArray:
             ## TODO: Include current offset. Allocate k from the start.
             get_matching_records_file(
                     c_filename,
-                    self.suffix_arrays[i],
+                    ## self.suffix_arrays[i],
+                    &self.sa_index.suffix_arrays[i],
                     substring.lower().encode('utf-8'),
                     k,
                     records,
@@ -272,11 +247,13 @@ cdef class SuffixArray:
                     )
 
         if num_matches == 0:
+            print("before free")
             free(records)
+            print("after free")
             return []
 
-        for j in range(num_matches):
-            all_records.append(records[j].decode('utf-8'))
+            for j in range(num_matches):
+                all_records.append(records[j].decode('utf-8'))
 
         reader      = csv.reader(all_records, delimiter=',')
         all_records = [x for x in reader]
